@@ -6,11 +6,19 @@ from engine.common import connect_db, load_config
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, body=None):
+    """JSON body by default; pass text= for RSS, HTML or robots.txt responses."""
+
+    def __init__(self, status_code=200, body=None, text=None, content_type=None):
         self.status_code = status_code
         self._body = body if body is not None else {}
+        self.text = text if text is not None else ""
+        self.content = self.text.encode("utf-8")
+        default_type = "application/json" if text is None else "text/html"
+        self.headers = {"content-type": content_type or default_type}
 
     def json(self):
+        if self.text and not self._body:
+            raise ValueError("not JSON")
         return self._body
 
 
@@ -26,6 +34,7 @@ class FakeHttp:
         result = self.respond(url, params)
         if isinstance(result, Exception):
             raise result
+        result.url = url  # like requests: the final URL, used to resolve relative links
         return result
 
 

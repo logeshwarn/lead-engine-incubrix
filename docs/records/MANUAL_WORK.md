@@ -19,6 +19,8 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 
 | 2026-10-27 | Owner | Created a Google Gemini API key (AI Studio) and put it in `.env` as `LLM_API_KEY` | `check_apis.py` at 23:25 IST: Gemini PASS (HTTP 200, 0 tokens) | not recorded |
 | 2026-10-27 | Owner | Gave the sender identity for outreach: "Logeshwaran, final year IT student at TCE" | Saved in `config.yaml` (`sender`) | not recorded |
+| 2026-10-27 | Owner | Committed and pushed discover and the Gemini setup (`295980b phase 01`, `1cb765b gemini LLM`) | In sync with `origin/main` | not recorded |
+| 2026-10-28 | Owner | Checked progress of the slow Phase 1 run and chose to let it finish rather than cap the sample | The full 343-candidate run completed; it showed the need for parallel fetching in Phase 5 | not recorded |
 
 ## Pending (not done yet)
 

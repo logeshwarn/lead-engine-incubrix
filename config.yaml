@@ -11,6 +11,22 @@ http:
 
 cache:
   search_max_age_days: 7      # discovery searches are reused for a week, so a weekly rerun finds new creators
+  enrich_max_age_days: 7      # profiles, uploads, feeds and pages: a weekly rerun sees fresh activity
+  failure_max_age_days: 1     # a feed or website that failed is not retried for a day (APIs are always retried)
+
+enrich:
+  recent_days: 60             # item details (duration, captions) are kept for this window: the longest activity rule
+  youtube_uploads: 50         # last N uploads read per channel (1 playlistItems call)
+  rss_episodes: 50            # last N episodes read per feed
+  item_text_chars: 2000       # description kept per item (sponsor and need evidence lives here)
+  website_pages: [contact, about]   # besides the homepage, follow the first same-site link containing each word
+  website_text_chars: 20000   # page text kept per page
+  max_links: 200              # links kept per creator
+  # Never fetched: big platforms whose terms forbid scraping, and sites that are not the creator's own.
+  # Their links are still recorded (e.g. an Instagram handle is a contact option).
+  skip_domains: [youtube.com, youtu.be, instagram.com, facebook.com, x.com, twitter.com, tiktok.com,
+                 linkedin.com, apple.com, spotify.com, amazon.com, google.com, threads.net, linktr.ee,
+                 patreon.com, discord.gg, discord.com, t.me, wa.me]
 
 discover:
   youtube_max_results: 50     # per search.list call (API maximum); each call costs 100 quota units

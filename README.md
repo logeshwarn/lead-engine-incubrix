@@ -6,7 +6,11 @@ The full brief is in [docs/BRIEF.pdf](docs/BRIEF.pdf).
 
 The assignment it answers is in [docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf](docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf).
 
-**Status:** Phase 1 is in progress. Stage 1 (discover) is built: a run searches YouTube, Podcast Index and iTunes for every active seed and saves the candidates. The later stages are not built yet, and the run log lists them. See [docs/PHASES.md](docs/PHASES.md).
+**Status:** Phase 1 (discover and enrich) is built.
+- **Discover** searches YouTube, Podcast Index and iTunes for every active seed.
+- **Enrich** adds each candidate's profile, recent uploads or episodes, and published contact details from YouTube, the show's RSS feed and the creator's own website (robots.txt respected).
+
+The later stages are not built yet, and the run log lists them. See [docs/PHASES.md](docs/PHASES.md).
 
 ## Setup (Windows, Python 3.11+)
 
@@ -44,7 +48,7 @@ python run.py --refresh
 
 `python run.py --help` lists the same flags.
 
-**Quota warning:** an uncached run over the full `data/seeds.csv` makes 84 YouTube searches, about 8,400 of the 10,000 free daily units. A rerun within 7 days is served from the cache and costs nothing. To try the engine cheaply, copy a few rows of `data/seeds.csv` into a new file and pass it with `--input`.
+**Quota warning:** an uncached run over the full `data/seeds.csv` makes 84 YouTube searches, about 8,400 of the 10,000 free daily units, and enrich adds about 2-3 units per YouTube channel. A full first run therefore takes 2-3 days of quota. Each run stops YouTube calls cleanly when the quota runs out, and the next day's run continues from the cache. A rerun within 7 days is served from the cache and costs nothing. To try the engine cheaply, copy a few rows of `data/seeds.csv` into a new file and pass it with `--input`.
 
 ## Config
 
@@ -63,7 +67,12 @@ These are planned and will exist once the export stage is built (Phase 5):
 
 Already produced today:
 
-- `output/engine.db`: SQLite database. It holds the API cache, the API call log and the `candidates` table from discover. Delete it to start from scratch, which spends the quota again.
+- `output/engine.db`: SQLite database. It holds:
+  - the API cache and the API call log
+  - `candidates` (discover)
+  - `profiles` and `content_items` (enrich)
+  
+  Delete it to start from scratch, which spends the quota again. Any SQLite viewer (for example "DB Browser for SQLite") can open it to inspect the rows by hand.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run
 
 ## Tests and lint
@@ -85,6 +94,8 @@ python -m ruff check .
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for Gemini**: the key is wrong or restricted. Create a new one at https://aistudio.google.com (Get API key).
 - **Log says `YouTube daily quota used up`**: the remaining YouTube searches were skipped. Run again after the quota resets (midnight Pacific time). Finished searches are cached, so the run continues where it stopped.
 - **`input file not found`**: check the `--input` path.
+- **The first run is slow** (about 5 s per new podcast or website): feeds and websites are fetched one at a time, and a slow site can take up to 3 × 20 s before it is skipped. Reruns are served from the cache and take seconds. Failed sites are retried after 1 day.
+- **`partial: website (robots.txt disallows)`** in `profiles`: the site asks bots not to read it, so we don't. That's expected behaviour, not an error.
 
 ## Docs
 

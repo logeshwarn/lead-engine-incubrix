@@ -7,7 +7,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | # | Stage | File | Input | Output | Status |
 |---|---|---|---|---|---|
 | 1 | discover | `engine/discover.py` | `data/seeds.csv` | `candidates` table (platform ID, URL, source, query) | **built** |
-| 2 | enrich | `engine/enrich.py` | candidates | profile, recent uploads, links, public contact info (cached) | not built |
+| 2 | enrich | `engine/enrich.py` | `candidates` | `profiles` and `content_items` tables: profile, recent uploads, links, public contact info (cached) | **built** |
 | 3 | verify | `engine/verify.py` | enriched candidates | 7 checks with an evidence quote and URL each; failures go to `rejected.csv` | not built |
 | 4 | dedupe | `engine/dedupe.py` | verified | one row per creator (platform ID, domain, email) | not built |
 | 5 | caps | `engine/caps.py` | deduped | country and segment rules enforced | not built |
@@ -69,6 +69,38 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
 - 90 unique candidates (50 YouTube, 40 podcast) in 29.5 s
 - the rerun took 0.1 s with 0 live calls
 
+## Stage 2: enrich
+
+- **Input:** the `candidates` table.
+- **YouTube** (about 2-3 quota units per channel):
+  1. `channels.list` in batches of 50 (1 unit per batch) gives the title, handle, description, stated country, language, subscribers (blank when hidden), video count and uploads playlist.
+  2. If the channel is outside its seed's subscriber band, states a non-approved country, or has no uploads, it is marked `skipped: ...` and steps 3 and 4 are not run. That saves quota for channels that can qualify.
+  3. `playlistItems.list` reads the last 50 uploads (1 unit), giving the date of the last upload.
+  4. `videos.list` covers the uploads from the last 60 days (1 unit), giving each one's title, URL, date, duration, caption flag and description.
+- **Podcasts:** the show's own RSS feed (feedparser) gives:
+  - title, language, website and episode count
+  - the **owner email the show publishes in its feed** (`itunes:owner`)
+  - for episodes from the last 60 days: date, duration, transcript tag (counts as captions) and show notes
+- **Creator website** (both platforms):
+  1. The homepage is fetched. For YouTube this is the first non-platform link in the channel description; for podcasts it is the feed's website link.
+  2. Then the first same-site link containing "contact", and the first containing "about".
+  3. `robots.txt` is checked first. If it disallows us, or cannot be read (no answer), the site is not fetched. A missing `robots.txt` (4xx) means allowed.
+  4. Domains in `enrich.skip_domains` are never fetched, because their terms forbid scraping or they are not the creator's own site (YouTube, Instagram, X, TikTok, LinkedIn, Facebook, Apple, Spotify, Linktree, Patreon and others). Their links are still recorded.
+- **Emails and links:** only addresses and links **written in public text**: the channel description, video descriptions, show notes, the feed owner field, website text and `mailto:` links. Each one keeps the URL it was found on, for evidence. Nothing is constructed or guessed. Image names like `logo@2x.png` and `@example.com` addresses are dropped.
+- **Output:**
+  - `profiles`: one row per candidate, with `emails`, `links` and `pages` stored as JSON.
+  - `content_items`: recent uploads or episodes.
+  - `enrich_status` on each profile:
+    - `ok`
+    - `partial: <what failed>`, for example the website was blocked by robots.txt
+    - `skipped: <reason>`, for example size or country
+    - `failed: <reason>`, for example no feed URL, feed error, or quota used up
+- **Failure handling:** a failed call marks the row and is logged; the run continues. If the YouTube quota runs out, the remaining YouTube rows are marked `failed: quota used up`, and the next run resumes from the cache.
+- **Rerunnable:** everything goes through the cache for 7 days (`cache.enrich_max_age_days`). Both tables are rebuilt each run.
+  - Missing pages (4xx) are cached too.
+  - Feeds, websites and robots.txt that failed (timeouts, SSL errors, 5xx) are **remembered for 1 day** (`cache.failure_max_age_days`), so a same-day rerun skips them instantly instead of waiting through the timeouts again.
+  - Measured on 2026-10-28 with 343 candidates: the rerun made 0 live calls and took 3.3 s.
+
 ## Output format (`leads.csv`)
 
 `leads.csv` holds **qualified creators only**. Rejected creators go to `rejected.csv` with a reason. The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook order, as `LEADS_COLUMNS` in `engine/common.py`. Allowed values:
@@ -124,6 +156,7 @@ All values are in `config.yaml`.
 
 ## Failure handling
 
+- **Feeds, websites, robots.txt:** a final failure is remembered for 1 day, so a rerun does not repeat it. APIs are not remembered, so a quota error clears when the quota resets.
 - **HTTP calls (`cached_get`):** network errors, HTTP 429 and 5xx are retried 3 times with exponential backoff.
   - Other errors (for example 403) are not retried.
   - Either way the failure is logged to `api_log` and the log file, and the search or row is skipped. Failures are never cached and never filled with guessed data.

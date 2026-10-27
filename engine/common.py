@@ -21,6 +21,7 @@ REQUIRED_SECTIONS = [
     "http",
     "cache",
     "discover",
+    "enrich",
     "segments",
     "countries",
     "language",
@@ -156,18 +157,55 @@ def _log_call(conn, source, cached, ok, detail=""):
     conn.commit()
 
 
-def cached_get(conn, source, url, params, http, max_age_days, headers_fn=None, secret_params=("key",)):
-    """GET a JSON API through the SQLite cache.
+def cached_get(
+    conn,
+    source,
+    url,
+    params,
+    http,
+    max_age_days,
+    headers_fn=None,
+    secret_params=("key",),
+    parse=None,
+    ok_statuses=(200,),
+    failure_max_age_days=None,
+):
+    """GET a URL through the SQLite cache.
 
     Returns (data, was_cached). Retries transient failures `http["retries"]` times with
     exponential backoff, then raises ApiError so the caller can log it and skip the row.
     headers_fn is called per attempt because some APIs (Podcast Index) sign the current time.
+    parse turns the response into JSON-able data (default: r.json()). RSS feeds and web pages
+    pass a parser so only the extracted fields are cached, not megabytes of raw page.
+    ok_statuses: web pages and robots.txt also accept 4xx (parsed as "nothing there"), so a
+    missing page is cached like any answer and a rerun does not ask again.
+    failure_max_age_days: when set, a final failure is remembered for that long and re-raised
+    without a request, so a rerun does not wait through the same timeouts again. Left unset for
+    APIs, where a remembered quota error would block calls after the quota resets.
     """
     key = _cache_key(source, url, params, secret_params)
     row = conn.execute("SELECT response, fetched_at FROM api_cache WHERE cache_key = ?", (key,)).fetchone()
-    if row and now_utc() - datetime.fromisoformat(row[1]) < timedelta(days=max_age_days):
-        _log_call(conn, source, cached=1, ok=1)
-        return json.loads(row[0]), True
+    if row:
+        age = now_utc() - datetime.fromisoformat(row[1])
+        data = json.loads(row[0])
+        failed = data.get("_failed") if isinstance(data, dict) else None
+        if failed and failure_max_age_days is not None and age < timedelta(days=failure_max_age_days):
+            _log_call(conn, source, cached=1, ok=0, detail=failed["reason"])
+            raise ApiError(source, failed["status"], failed["reason"])
+        if not failed and age < timedelta(days=max_age_days):
+            _log_call(conn, source, cached=1, ok=1)
+            return data, True
+
+    def fail(status, reason):
+        _log_call(conn, source, cached=0, ok=0, detail=f"HTTP {status} {reason}".strip())
+        if failure_max_age_days is not None:
+            failed = {"_failed": {"status": status, "reason": reason}}
+            conn.execute(
+                "INSERT OR REPLACE INTO api_cache VALUES (?, ?, ?, ?)",
+                (key, source, json.dumps(failed), now_utc().isoformat()),
+            )
+            conn.commit()
+        raise ApiError(source, status, reason)
 
     def attempt():
         try:
@@ -189,15 +227,15 @@ def cached_get(conn, source, url, params, http, max_age_days, headers_fn=None, s
             reraise=True,
         )(attempt)
     except _Transient as e:
-        _log_call(conn, source, cached=0, ok=0, detail=str(e))
-        raise ApiError(source, "n/a", f"gave up after {http['retries']} attempts ({e})") from None
+        fail("n/a", f"gave up after {http['retries']} attempts ({e})")
 
-    if r.status_code != 200:
-        reason = _error_reason(r)
-        _log_call(conn, source, cached=0, ok=0, detail=f"HTTP {r.status_code} {reason}")
-        raise ApiError(source, r.status_code, reason)
+    if r.status_code not in ok_statuses:
+        fail(r.status_code, _error_reason(r))
 
-    data = r.json()
+    try:
+        data = parse(r) if parse else r.json()
+    except Exception as e:  # a broken feed or page must skip this row, not crash the run
+        fail(200, f"parse error ({type(e).__name__})")
     conn.execute(
         "INSERT OR REPLACE INTO api_cache VALUES (?, ?, ?, ?)", (key, source, json.dumps(data), now_utc().isoformat())
     )

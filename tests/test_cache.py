@@ -72,3 +72,31 @@ def test_network_error_message_hides_key(conn, config, fake_http):
         get(conn, config)
     assert "SECRET" not in str(e.value)
     assert "SECRET" not in str(conn.execute("SELECT detail FROM api_log").fetchall())
+
+
+def test_remembered_failure_skips_the_request(conn, config, fake_http):
+    fake = fake_http(lambda url, params: FakeResponse(500))
+    for _ in range(2):
+        with pytest.raises(ApiError):
+            cached_get(conn, "website", URL, {}, config["http"], 7, failure_max_age_days=1)
+    assert len(fake.calls) == 3  # 3 attempts on the first run, none on the rerun
+    assert conn.execute("SELECT cached, ok FROM api_log").fetchall() == [(0, 0), (1, 0)]
+
+
+def test_remembered_failure_expires(conn, config, fake_http):
+    replies = [FakeResponse(500)] * 3 + [FakeResponse(200, {"ok": 1})]
+    fake = fake_http(lambda url, params: replies.pop(0))
+    with pytest.raises(ApiError):
+        cached_get(conn, "website", URL, {}, config["http"], 7, failure_max_age_days=1)
+    data, cached = cached_get(conn, "website", URL, {}, config["http"], 7, failure_max_age_days=0)
+    assert data == {"ok": 1} and cached is False
+    assert len(fake.calls) == 4
+
+
+def test_api_failures_are_not_remembered(conn, config, fake_http):
+    # APIs leave failure_max_age_days unset: a quota error must not block calls after the quota resets.
+    fake = fake_http(lambda url, params: FakeResponse(500))
+    for _ in range(2):
+        with pytest.raises(ApiError):
+            get(conn, config)
+    assert len(fake.calls) == 6

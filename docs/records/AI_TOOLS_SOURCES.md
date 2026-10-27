@@ -12,6 +12,8 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-27 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | locked `leads.csv` columns to the workbook, wrote `check_apis.py` and its tests, ran the live API check |
 | 2026-10-27 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | analysed the qualification rules and wrote the plan; chose the four delegated decisions; built `engine/discover.py`, `cached_get` and their tests; ran the small live discover and the iTunes store comparison |
 
+| 2026-10-27 to 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/enrich.py`, the cache extensions and their tests; ran the live Phase 1 check and the hand inspection; found and fixed the timezone, bad-date, NaN and repeat-failure bugs |
+
 ## Sources
 
 | Date | Source | Used for |
@@ -25,3 +27,6 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-27 | YouTube `search.list` (1 live call, 100 quota units), Podcast Index `search/byterm` (1 call), iTunes Search (7 calls, one per approved store) | small live discover on "video podcast business interviews" and "founder interviews podcast": 90 unique candidates. The rerun was all cache hits |
 | 2026-10-27 | Google Gemini API (`models` list, 1 call, 0 tokens) | access check only; no content generated |
 | 2026-10-27 | YouTube, Podcast Index and iTunes (1 accidental call each, with dummy keys `yt` / `pk`) | a test bug ran discover once before the fake HTTP layer was installed. The owner's keys and quota were not used; results went to a temporary test database only. Fixed, and all tests now block the network |
+| 2026-10-27 to 2026-10-28 | Phase 1 live run on 5 seed keywords (S001, S002, S004, S011, S015). YouTube API: 1 more `search.list` (100 units), 2 `channels.list`, 25 `playlistItems.list`, 20 `videos.list` (47 units). Podcast Index: 2 more searches. iTunes: 2 more searches | 343 candidates discovered and enriched. YouTube quota used by all live runs to date: 247 units |
+| 2026-10-27 to 2026-10-28 | Public podcast RSS feeds (243 shows; 474 live fetches, because the feeds were read again after the timezone fix) | episodes, durations, owner emails, transcript tags |
+| 2026-10-27 to 2026-10-28 | Public creator websites: 249 robots.txt and 409 page fetches (homepage, contact, about), robots.txt respected | contact emails, links and page text, each kept with its source URL |

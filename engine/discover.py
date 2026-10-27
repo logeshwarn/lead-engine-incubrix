@@ -34,6 +34,8 @@ CANDIDATE_COLUMNS = [
     "seed_id",
     "segment",
     "niche",
+    "size_min",  # the seed's subscriber band, carried so enrich can skip out-of-band channels
+    "size_max",
     "discovered_at",
 ]
 
@@ -201,6 +203,8 @@ def run(conn, config, seeds_path):
                     seed_id=seed["seed_id"],
                     segment=seed["segment"],
                     niche=seed["niche"],
+                    size_min=seed["size_min"],
+                    size_max=seed["size_max"],
                     discovered_at=now_utc().date().isoformat(),
                 )
             rows += found

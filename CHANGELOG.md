@@ -2,6 +2,25 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Stage 2, enrich (Phase 1 done)
+
+- Added `engine/enrich.py`: YouTube channel, upload and video details (size/country gate before the per-channel calls); podcast RSS (episodes, durations, owner email, transcript tag); the creator's own website (homepage, contact and about pages, robots.txt checked, big platforms never fetched). Writes the `profiles` and `content_items` tables.
+- `engine/common.py`, `cached_get` gained three options:
+  - `parse`: caches extracted fields instead of raw pages
+  - `ok_statuses`: caches 4xx pages as "nothing there"
+  - `failure_max_age_days`: remembers failed feeds and sites for 1 day
+- `engine/discover.py`: candidates now carry the seed's `size_min` and `size_max`.
+- `run.py` runs discover then enrich.
+- `config.yaml`: added `enrich` (windows, page limits, skip domains) and `cache.enrich_max_age_days` / `cache.failure_max_age_days`.
+- Fixes found in the live run:
+  - episode dates were shifted by the local timezone (`mktime` changed to `timegm`)
+  - one impossible date dropped a whole feed
+  - pandas 3 `iterrows()` turned `None` into `NaN`
+  - the parsed-feed cache is now versioned (`rss.v2`)
+- Tests: `tests/test_enrich.py`; failure-cache tests in `tests/test_cache.py`; `FakeResponse` supports text responses. 69 tests in total.
+- Live check: 343 candidates enriched; the rerun made 0 live calls out of 1,100 and took 3.3 s.
+- Docs: WORKFLOW, TECH_RUNTIME, DECISIONS, PHASES (Phase 1 done, inspection findings), README, and both records files.
+
 ## 2026-10-27: LLM provider and sender set
 
 - `check_apis.py` now also checks the Gemini key by listing models (0 tokens, key sent in a header). All three APIs pass.
