@@ -4,7 +4,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Setup | in progress |
+| 0 | Setup | done (2026-10-27) |
 | 1 | Discover and enrich | not started |
 | 2 | Verify, dedupe, caps | not started |
 | 3 | Score and route | not started |
@@ -25,11 +25,18 @@ Finished (2026-10-27):
 - All docs from brief section 3 plus the two records files
 - Tests in `tests/test_setup.py`
 
-Still open, waiting on the owner:
-- [ ] Confirm API access for YouTube, Podcast Index and the LLM (keys go in `.env`)
-- [ ] Choose the LLM provider (deferred until Phase 4 at the latest)
-- [ ] Lock the `leads.csv` columns to the Submission Workbook (owner will add the workbook to `docs/`)
+Also finished (2026-10-27):
+- Owner added YouTube and Podcast Index keys to `.env`
+- Owner added `docs/Submission_Workbook.xlsx`; `config.yaml` now uses its segment labels and ISO country codes
+- Owner's seed list reviewed and corrected into `data/seeds.csv`, checked by `tests/test_seeds.py`
+
+- `leads.csv` columns locked to the 30 columns in workbook tab `02_LEADS` (`LEADS_COLUMNS` in `engine/common.py`), with allowed channel, priority and status values. `tests/test_leads_schema.py` re-reads the workbook.
+- API access confirmed on 2026-10-27 22:28 IST with `python check_apis.py`: YouTube Data API v3 PASS (HTTP 200, 1 quota unit), Podcast Index PASS (HTTP 200).
+
+Moved to a later phase:
+- LLM provider choice and access check. The owner deferred it; it is needed by Phase 4 at the latest.
 
 Open questions for later phases:
+- Phase 2 or 5: the workbook's `leads.csv` has `candidate_status` (Qualified/Rejected) and `rejection_reason`, while the brief puts rejects in a separate `rejected.csv`. Which file should rejected rows go in?
 - Phase 2: the brief does not define "long-form" for the activity rule (minimum length in minutes).
 - Phase 3: scoring weights are not in the brief yet.

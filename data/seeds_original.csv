@@ -1,0 +1,43 @@
+seed_id,segment,niche,primary_platform,discovery_keywords,need_signal_to_check,size_band_target,status
+S001,podcaster,business_entrepreneurship,podcast_apple_spotify,"founder interviews podcast; startup podcast solo host; small business podcast","no clips or Shorts; long episodes; no captions","1k-250k",draft
+S002,podcaster,marketing,podcast_apple_spotify,"marketing podcast; content marketing podcast; social media marketing podcast","episodes not repurposed; inconsistent posting","1k-250k",draft
+S003,podcaster,tech_ai,podcast_apple_spotify,"AI podcast; tech podcast independent host; developer podcast","backlog of episodes; single-platform presence","1k-250k",draft
+S004,podcaster,health_fitness,podcast_apple_spotify,"fitness podcast; nutrition podcast; wellness podcast host","video podcast without clips; no captions","1k-250k",draft
+S005,podcaster,personal_finance,podcast_apple_spotify,"personal finance podcast; investing podcast; money podcast","long-form only; no short-form distribution","1k-250k",draft
+S006,podcaster,education_learning,podcast_apple_spotify,"education podcast; teacher podcast; learning podcast","episodes not repurposed; no newsletter or posts","1k-250k",draft
+S007,podcaster,career_leadership,podcast_apple_spotify,"career podcast; leadership podcast; management podcast","long episodes; sparse social posting","1k-250k",draft
+S008,podcaster,productivity_creator_economy,podcast_apple_spotify,"productivity podcast; creator economy podcast; solopreneur podcast","manual editing; inconsistent cadence","1k-250k",draft
+S009,podcaster,real_estate_investing,podcast_apple_spotify,"real estate investing podcast; landlord podcast","video episodes without clips","1k-250k",draft
+S010,podcaster,psychology_self_improvement,podcast_apple_spotify,"psychology podcast; self improvement podcast; mindset podcast","backlog of episodes; no captions","1k-250k",draft
+S011,video_podcaster,business_interviews,youtube,"video podcast business interviews; full episode youtube podcast","long videos with no Shorts","1k-250k",draft
+S012,video_podcaster,tech_ai,youtube,"AI video podcast; tech interview show youtube","clip backlog; weak captions","1k-250k",draft
+S013,video_podcaster,health_science,youtube,"health video podcast; science podcast youtube","episodes over 45 minutes; no clips","1k-250k",draft
+S014,video_podcaster,finance_investing,youtube,"investing video podcast; finance show youtube","no short-form; inconsistent uploads","1k-250k",draft
+S015,youtuber,education_explainers,youtube,"explainer channel; educational youtube channel; how it works channel","back catalog without Shorts","1k-500k",draft
+S016,youtuber,tech_reviews,youtube,"tech review channel independent; gadget reviews youtube","long videos; no captions on clips","1k-500k",draft
+S017,youtuber,productivity_study,youtube,"productivity youtuber; study tips channel; notion tutorial channel","one platform only; low consistency","1k-250k",draft
+S018,youtuber,finance_investing,youtube,"personal finance youtuber; stock investing channel","long-form only; sponsor-led","1k-500k",draft
+S019,youtuber,software_tutorials,youtube,"software tutorial channel; coding tutorial youtube; no-code channel","tutorials not clipped; no multi-platform publishing","1k-250k",draft
+S020,youtuber,creator_economy,youtube,"how to grow on youtube channel; creator tips channel; faceless channel tutorials","posting overhead; editing time complaints","1k-250k",draft
+S021,youtuber,career_advice,youtube,"career advice youtube; interview tips channel; resume tips","back catalog; few Shorts","1k-250k",draft
+S022,youtuber,health_fitness,youtube,"fitness education channel; nutrition explained youtube","long videos; no clips","1k-500k",draft
+S023,youtuber,business_commentary,youtube,"business case study channel; startup analysis youtube","talking-head long form; no short repurposing","1k-500k",draft
+S024,youtuber,language_learning_english,youtube,"english learning channel; language teacher youtube","captions needed; multi-platform gap","1k-250k",draft
+S025,expert_led,business_coach,linkedin,"business coach course; coaching program; mastermind; creator coaching","session insights not turned into content","1k-100k",draft
+S026,expert_led,executive_leadership_coach,linkedin,"executive coach; leadership coach; keynote speaker coach","thin posting; mostly text","1k-100k",draft
+S027,expert_led,marketing_seo_consultant,linkedin,"independent marketing consultant; seo consultant; fractional cmo","no video; inconsistent publishing","1k-100k",draft
+S028,expert_led,financial_educator,youtube,"financial educator course; investing educator; money coach","course promoted; limited clips","1k-250k",draft
+S029,expert_led,fitness_nutrition_educator,instagram,"fitness coach online program; nutrition coach; strength coach","reels time-consuming; no captions","1k-250k",draft
+S030,expert_led,career_coach,linkedin,"career coach; interview coach; resume coach","posting backlog; small team","1k-100k",draft
+S031,expert_led,sales_trainer,linkedin,"sales trainer; sales coach course; b2b sales educator","video not repurposed","1k-100k",draft
+S032,expert_led,course_creator_educator,youtube,"online course creator; cohort course; teach online","lessons not clipped for promotion","1k-250k",draft
+S033,expert_led,productivity_coach,youtube,"productivity coach; time management coach; notion consultant","one platform; no scheduling","1k-100k",draft
+S034,expert_led,mindset_wellbeing_coach,instagram,"life coach; mindset coach; stress coach (non-clinical)","reels and captions backlog","1k-100k",draft
+S035,expert_led,real_estate_educator,youtube,"real estate educator course; investing mentor","long videos; no short-form","1k-250k",draft
+S036,expert_led,tech_ai_educator,youtube,"ai educator course; data science instructor; cloud trainer","tutorial backlog; multi-platform gap","1k-250k",draft
+S037,expert_led,legal_accounting_educator,youtube,"small business accounting educator; tax tips educator; legal explainer for founders","educational content; no clips or posts","1k-100k",draft
+S038,expert_led,communication_public_speaking,youtube,"public speaking coach; communication skills course","video examples not clipped","1k-100k",draft
+S039,expert_led,founder_educator,linkedin,"founder building in public course; startup mentor program","thin repurposing; text-only posts","1k-100k",draft
+S040,expert_led,design_creative_educator,youtube,"design course creator; figma educator; photography instructor","tutorial backlog","1k-250k",draft
+S041,expert_led,writing_publishing_coach,youtube,"writing coach course; book coach; newsletter growth educator","video not repurposed","1k-100k",draft
+S042,expert_led,parenting_education,youtube,"parenting educator course; study skills coach for students","captioned clips missing","1k-100k",draft

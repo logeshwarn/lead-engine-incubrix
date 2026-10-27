@@ -10,13 +10,15 @@ http:
   retries: 3                  # brief: retry 3 times, then log and skip the row
   backoff_seconds: 2          # base wait between retries (doubles each attempt)
 
-segments:                     # approved creator segments
-  - podcaster
-  - youtuber
-  - expert_led_creator
+segments:                     # approved segments, spelled exactly as the Submission Workbook dropdown
+  - Podcaster/Video Podcaster
+  - YouTuber/Video-First Creator
+  - Expert-Led Creator
+
+discovery_platforms: [youtube, podcast]  # the only sources the brief provides APIs for
 
 countries:
-  approved: [US, CA, UK, IE, AU, NZ, SG]
+  approved: [US, CA, GB, IE, AU, NZ, SG]  # ISO 3166 codes as in the workbook; the brief's "UK" is GB
   min_approved_share: 0.80    # at least 80% of final leads from approved countries
   min_countries: 3            # at least 3 distinct countries
   max_country_share: 0.60     # no single country above 60%

@@ -1,0 +1,43 @@
+seed_id,segment,niche,primary_platform,discovery_keywords,need_signal_to_check,size_min,size_max,status
+S001,Podcaster/Video Podcaster,business_entrepreneurship,podcast,founder interviews podcast; startup podcast solo host; small business podcast,no clips or Shorts; long episodes; no captions,,,active
+S002,Podcaster/Video Podcaster,marketing,podcast,marketing podcast; content marketing podcast; social media marketing podcast,episodes not repurposed; inconsistent posting,,,active
+S003,Podcaster/Video Podcaster,tech_ai,podcast,AI podcast; tech podcast independent host; developer podcast,backlog of episodes; single-platform presence,,,active
+S004,Podcaster/Video Podcaster,health_fitness,podcast,fitness podcast; nutrition podcast; wellness podcast host,video podcast without clips; no captions,,,active
+S005,Podcaster/Video Podcaster,personal_finance,podcast,personal finance podcast; investing podcast; money podcast,long-form only; no short-form distribution,,,active
+S006,Podcaster/Video Podcaster,education_learning,podcast,education podcast; teacher podcast; learning podcast,episodes not repurposed; no newsletter or posts,,,active
+S007,Podcaster/Video Podcaster,career_leadership,podcast,career podcast; leadership podcast; management podcast,long episodes; sparse social posting,,,active
+S008,Podcaster/Video Podcaster,productivity_creator_economy,podcast,productivity podcast; creator economy podcast; solopreneur podcast,long episodes; inconsistent cadence,,,active
+S009,Podcaster/Video Podcaster,real_estate_investing,podcast,real estate investing podcast; landlord podcast,video episodes without clips,,,active
+S010,Podcaster/Video Podcaster,psychology_self_improvement,podcast,psychology podcast; self improvement podcast; mindset podcast,backlog of episodes; no captions,,,active
+S011,Podcaster/Video Podcaster,business_interviews,youtube,video podcast business interviews; full episode youtube podcast,long videos with no Shorts,1000,250000,active
+S012,Podcaster/Video Podcaster,tech_ai,youtube,AI video podcast; tech interview show youtube,clip backlog; weak captions,1000,250000,active
+S013,Podcaster/Video Podcaster,health_science,youtube,health video podcast; science podcast youtube,episodes over 45 minutes; no clips,1000,250000,active
+S014,Podcaster/Video Podcaster,finance_investing,youtube,investing video podcast; finance show youtube,no short-form; inconsistent uploads,1000,250000,active
+S015,YouTuber/Video-First Creator,education_explainers,youtube,explainer channel; educational youtube channel; how it works channel,back catalog without Shorts,1000,500000,active
+S016,YouTuber/Video-First Creator,tech_reviews,youtube,tech review channel independent; gadget reviews youtube,long videos; no captions on clips,1000,500000,active
+S017,YouTuber/Video-First Creator,productivity_study,youtube,productivity youtuber; study tips channel; notion tutorial channel,one platform only; low consistency,1000,250000,active
+S018,YouTuber/Video-First Creator,finance_investing,youtube,personal finance youtuber; stock investing channel,long-form only; no Shorts,1000,500000,active
+S019,YouTuber/Video-First Creator,software_tutorials,youtube,software tutorial channel; coding tutorial youtube; no-code channel,tutorials not clipped; no multi-platform publishing,1000,250000,active
+S020,YouTuber/Video-First Creator,creator_economy,youtube,how to grow on youtube channel; creator tips channel; faceless channel tutorials,posting overhead; editing time complaints,1000,250000,active
+S021,YouTuber/Video-First Creator,career_advice,youtube,career advice youtube; interview tips channel; resume tips,back catalog; few Shorts,1000,250000,active
+S022,YouTuber/Video-First Creator,health_fitness,youtube,fitness education channel; nutrition explained youtube,long videos; no clips,1000,500000,active
+S023,YouTuber/Video-First Creator,business_commentary,youtube,business case study channel; startup analysis youtube,talking-head long form; no short repurposing,1000,500000,active
+S024,YouTuber/Video-First Creator,language_learning_english,youtube,english learning channel; language teacher youtube,captions needed; multi-platform gap,1000,250000,active
+S025,Expert-Led Creator,business_coach,youtube,business coach course; coaching program; mastermind; creator coaching,long videos; no Shorts; no captions,1000,100000,active
+S026,Expert-Led Creator,executive_leadership_coach,youtube,executive coach; leadership coach; keynote speaker coach,low upload frequency; no Shorts,1000,100000,active
+S027,Expert-Led Creator,marketing_seo_consultant,youtube,independent marketing consultant; seo consultant; fractional cmo,inconsistent uploads; no Shorts,1000,100000,active
+S028,Expert-Led Creator,financial_educator,youtube,financial educator course; investing educator; money coach,course promoted; limited clips,1000,250000,active
+S029,Expert-Led Creator,fitness_nutrition_educator,youtube,fitness coach online program; nutrition coach; strength coach,long videos; no Shorts; no captions,1000,250000,active
+S030,Expert-Led Creator,career_coach,youtube,career coach; interview coach; resume coach,inconsistent uploads; no Shorts,1000,100000,active
+S031,Expert-Led Creator,sales_trainer,youtube,sales trainer; sales coach course; b2b sales educator,video not repurposed,1000,100000,active
+S032,Expert-Led Creator,course_creator_educator,youtube,online course creator; cohort course; teach online,lessons not clipped for promotion,1000,250000,active
+S033,Expert-Led Creator,productivity_coach,youtube,productivity coach; time management coach; notion consultant,one platform; no scheduling,1000,100000,active
+S034,Expert-Led Creator,mindset_wellbeing_coach,youtube,life coach; mindset coach; stress coach,no Shorts; no captions,1000,100000,active
+S035,Expert-Led Creator,real_estate_educator,youtube,real estate educator course; investing mentor,long videos; no short-form,1000,250000,active
+S036,Expert-Led Creator,tech_ai_educator,youtube,ai educator course; data science instructor; cloud trainer,tutorial backlog; multi-platform gap,1000,250000,active
+S037,Expert-Led Creator,legal_accounting_educator,youtube,small business accounting educator; tax tips educator; legal explainer for founders,educational content; no clips or posts,1000,100000,active
+S038,Expert-Led Creator,communication_public_speaking,youtube,public speaking coach; communication skills course,video examples not clipped,1000,100000,active
+S039,Expert-Led Creator,founder_educator,youtube,founder building in public course; startup mentor program,low upload frequency; no clips,1000,100000,active
+S040,Expert-Led Creator,design_creative_educator,youtube,design course creator; figma educator; photography instructor,tutorial backlog,1000,250000,active
+S041,Expert-Led Creator,writing_publishing_coach,youtube,writing coach course; book coach; newsletter growth educator,video not repurposed,1000,100000,active
+S042,Expert-Led Creator,parenting_education,youtube,parenting educator course; study skills coach for students,captioned clips missing,1000,100000,active

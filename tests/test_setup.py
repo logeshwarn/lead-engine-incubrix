@@ -22,7 +22,9 @@ def test_help_works():
 
 def test_config_loads_with_brief_values():
     config = load_config(ROOT / "config.yaml")
-    assert config["countries"]["approved"] == ["US", "CA", "UK", "IE", "AU", "NZ", "SG"]
+    # GB, not UK: the workbook uses ISO codes
+    assert config["countries"]["approved"] == ["US", "CA", "GB", "IE", "AU", "NZ", "SG"]
+    assert config["segments"] == ["Podcaster/Video Podcaster", "YouTuber/Video-First Creator", "Expert-Led Creator"]
     assert config["countries"]["min_approved_share"] == 0.80
     assert config["countries"]["min_countries"] == 3
     assert config["countries"]["max_country_share"] == 0.60

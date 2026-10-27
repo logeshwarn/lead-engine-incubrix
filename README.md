@@ -4,7 +4,7 @@ A small Python engine that finds content creators (podcasters, YouTubers, expert
 
 The full brief is in [docs/BRIEF.pdf](docs/BRIEF.pdf).
 
-**Status:** Phase 0 (setup) is done. The pipeline stages are not built yet, so a run only loads the config, writes a log and lists the planned stages. See [docs/PHASES.md](docs/PHASES.md).
+**Status:** Phase 0 (setup) is done, and API access for YouTube and Podcast Index is confirmed. The pipeline stages are not built yet, so a run only loads the config, writes a log and lists the planned stages. See [docs/PHASES.md](docs/PHASES.md).
 
 ## Setup (Windows, Python 3.11+)
 
@@ -16,6 +16,12 @@ copy .env.example .env
 ```
 
 Then open `.env` and fill in your API keys. `.env` is ignored by git, so never commit it.
+
+Check that the keys work. This costs 1 YouTube quota unit and prints only PASS or FAIL:
+
+```bash
+python check_apis.py
+```
 
 ## Run
 
@@ -38,7 +44,8 @@ python run.py --refresh
 
 ## Config
 
-- `config.yaml`: thresholds, country and segment caps, activity rules and evidence age. Every value comes from the brief. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
+- `data/seeds.csv`: the niches and search terms to discover from. Each row is a niche, not a lead. The columns are explained in [docs/WORKFLOW.md](docs/WORKFLOW.md). Set `status` to `paused` to skip a row.
+- `config.yaml`: thresholds, country and segment caps, activity rules and evidence age. Values come from the brief, and segment and country names come from the Submission Workbook. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
 - `.env`: API keys only. `.env.example` lists the keys you need.
 
 ## Outputs
@@ -68,6 +75,8 @@ python -m ruff check .
 
 - **`ModuleNotFoundError`**: the venv is not active, or `pip install -r requirements.txt` was skipped.
 - **`config.yaml is missing sections: ...`**: a required section was deleted from `config.yaml`. Restore it from git.
+- **`check_apis.py` says FAIL with HTTP 400 or 403 for YouTube**: the key is wrong, the YouTube Data API v3 is not enabled in the Google Cloud project, or the daily quota is used up.
+- **`check_apis.py` says FAIL with HTTP 401 for Podcast Index**: the key or secret is wrong, or your PC clock is off. The auth uses the current time.
 
 ## Docs
 

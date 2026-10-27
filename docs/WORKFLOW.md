@@ -16,12 +16,42 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
 | 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | not built |
 
+## Seeds (`data/seeds.csv`)
+
+Each row is a niche to search, not a lead. `tests/test_seeds.py` checks the file.
+
+| Column | Meaning |
+|---|---|
+| `seed_id` | unique ID, for example `S001` |
+| `segment` | one of the three workbook segment labels in `config.yaml` |
+| `niche` | short label, used for segment and country mix reporting |
+| `primary_platform` | `youtube` or `podcast` (the only discovery sources) |
+| `discovery_keywords` | search terms separated by `;`. Each YouTube term costs one `search.list` call (100 units). No term may repeat |
+| `need_signal_to_check` | hint for verify about which need to look for. Never used as evidence |
+| `size_min`, `size_max` | subscriber range for YouTube seeds. Blank for podcasts (no public audience count) |
+| `status` | `active` (searched) or `paused` (skipped) |
+
+The current file has 42 seeds: 84 YouTube terms (about 8,400 quota units for one uncached pass) and 29 podcast terms.
+
 Shared helpers live in `engine/common.py` (config loading, per-run logging). `run.py` runs the stages in order.
+
+## Output format (`leads.csv`)
+
+The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook order, as `LEADS_COLUMNS` in `engine/common.py`. Allowed values:
+
+- `creator_segment`: the 3 segments in `config.yaml`
+- `country_iso2`: the approved list in `config.yaml`, or `Other`
+- `best_channel` and `backup_channel`: `CHANNELS`
+- `priority`: `A`, `B` or `C`
+- `candidate_status`: `Qualified` or `Rejected`
+
+`tests/test_leads_schema.py` fails if any of these drift from the workbook.
 
 ## Commands
 
 - `python run.py --input data/seeds.csv --out output/`: full run
 - `python run.py --refresh`: re-check evidence older than 30 days, keep unchanged cached results
+- `python check_apis.py`: one cheap live call per API to prove the `.env` keys work
 
 ## Qualification checks (all must pass, each with a working public link)
 
