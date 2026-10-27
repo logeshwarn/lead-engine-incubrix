@@ -2,6 +2,23 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-27: Stage 1, discover
+
+- Added `engine/discover.py`: searches YouTube (channels), Podcast Index and iTunes for every active seed keyword, and writes the `candidates` table, one row per creator per platform.
+- `engine/common.py`:
+  - added `connect_db` (`<out>/engine.db` with the `api_cache` and `api_log` tables)
+  - added `cached_get` (SQLite cache, 3 retries with backoff, keys never stored or logged)
+  - added `ApiError`
+  - moved `podcastindex_headers` here from `check_apis.py`
+- `run.py` now runs discover. The database and logs are written inside `--out`, and a missing input file stops the run.
+- `config.yaml`:
+  - removed `paths`
+  - added `cache` (7-day search cache) and `discover` (search sizes, iTunes store list = US)
+  - set `activity.long_form_min_minutes: 20`
+- Added `tests/conftest.py` (fake HTTP, network blocked in all tests), `tests/test_cache.py` and `tests/test_discover.py`.
+- Recorded the decisions: need evidence, long-form = 20 minutes, `leads.csv` qualified-only, and the assignment PDF as a rules source.
+- Docs: WORKFLOW (discover stage, merged assignment rules), TECH_RUNTIME, DECISIONS, PHASES, README, and both records files.
+
 ## 2026-10-27: Phase 0 done: leads.csv columns locked, API access confirmed
 
 - `engine/common.py`: `LEADS_COLUMNS` (the 30 workbook columns, in order), plus `CHANNELS`, `PRIORITIES` and `CANDIDATE_STATUSES` from the workbook dropdowns.

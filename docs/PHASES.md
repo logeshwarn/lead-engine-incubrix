@@ -5,7 +5,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Setup | done (2026-10-27) |
-| 1 | Discover and enrich | not started |
+| 1 | Discover and enrich | in progress (discover built 2026-10-27) |
 | 2 | Verify, dedupe, caps | not started |
 | 3 | Score and route | not started |
 | 4 | Outreach drafting | not started |
@@ -36,7 +36,27 @@ Also finished (2026-10-27):
 Moved to a later phase:
 - LLM provider choice and access check. The owner deferred it; it is needed by Phase 4 at the latest.
 
+Open questions resolved on 2026-10-27 (see DECISIONS.md): `leads.csv` holds qualified creators only; long-form means 20 minutes or more.
+
+## Phase 1: Discover and enrich
+
+Done when 200 candidates are enriched with no repeat API calls on rerun, and TECH_RUNTIME.md and WORKFLOW.md are updated.
+
+| Module | Status |
+|---|---|
+| `engine/discover.py` | done (2026-10-27) |
+| `engine/enrich.py` | not started |
+
+Discover finished (2026-10-27):
+- YouTube channel search, Podcast Index search and iTunes Search, all through the SQLite cache (`cached_get`), with 3 retries and failure logging
+- `candidates` table with one row per `(platform, platform_id)`
+- Small live run on 2 seed keywords: 90 unique candidates (50 YouTube, 40 podcast) in 29.5 s. The rerun made 0 live calls and took 0.1 s
+- Hand check of the sample: discovery returns non-creators too, for example a podcast agency, a bank's podcast and a brand's show. Verify must exclude these (assignment section 2)
+- Tests: `tests/test_cache.py`, `tests/test_discover.py`. All tests block the real network
+
+Still open in Phase 1:
+- Full discover pass over all 42 seeds (about 8,400 YouTube units, nearly a full day's quota). Run it only when enrich is ready, so the candidates are used at once
+- `engine/enrich.py`
+
 Open questions for later phases:
-- Phase 2 or 5: the workbook's `leads.csv` has `candidate_status` (Qualified/Rejected) and `rejection_reason`, while the brief puts rejects in a separate `rejected.csv`. Which file should rejected rows go in?
-- Phase 2: the brief does not define "long-form" for the activity rule (minimum length in minutes).
-- Phase 3: scoring weights are not in the brief yet.
+- Phase 3: scoring weights are not set yet.

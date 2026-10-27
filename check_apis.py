@@ -5,25 +5,17 @@
 Prints only pass/fail and counts, never keys or response bodies.
 """
 
-import hashlib
 import os
 import sys
-import time
 
 import requests
 from dotenv import load_dotenv
 
+from engine.common import podcastindex_headers
+
 YOUTUBE_URL = "https://www.googleapis.com/youtube/v3/videoCategories"
 PODCASTINDEX_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
-USER_AGENT = "IncuBrixLeadEngine/0.1"  # Podcast Index rejects requests without a User-Agent
 TIMEOUT = 20
-
-
-def podcastindex_headers(key, secret, now=None):
-    """Podcast Index auth: sha1(key + secret + unix time), sent with the key and the time."""
-    now = str(int(now if now is not None else time.time()))
-    digest = hashlib.sha1((key + secret + now).encode("utf-8")).hexdigest()
-    return {"X-Auth-Key": key, "X-Auth-Date": now, "Authorization": digest, "User-Agent": USER_AGENT}
 
 
 def check_youtube(key):

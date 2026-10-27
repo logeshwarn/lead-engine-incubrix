@@ -1,0 +1,156 @@
+"""discover: seeds -> candidates, with one row per creator and no repeat calls on rerun."""
+
+import pandas as pd
+import pytest
+from conftest import FakeResponse
+
+from engine import discover
+
+YT_BODY = {
+    "items": [
+        {"id": {"channelId": "UC_A"}, "snippet": {"channelTitle": "Chan A", "description": "a"}},
+        {"id": {"channelId": "UC_B"}, "snippet": {"channelTitle": "Chan B", "description": "b"}},
+        {"id": {}, "snippet": {"title": "no id"}},  # no stable ID: must be skipped
+    ]
+}
+PI_BODY = {
+    "feeds": [
+        {
+            "id": 11,
+            "itunesId": 999,
+            "title": "Show X",
+            "url": "https://feed/x",
+            "link": "https://x.com",
+            "language": "en",
+        },
+        {"id": 12, "itunesId": None, "title": "Show Y", "url": "https://feed/y", "language": "en"},
+    ]
+}
+ITUNES_BODY = {
+    "results": [
+        {
+            "collectionId": 999,
+            "collectionName": "Show X",
+            "collectionViewUrl": "https://apple/x",
+            "feedUrl": "https://feed/x",
+        },
+        {
+            "collectionId": 555,
+            "collectionName": "Show Z",
+            "collectionViewUrl": "https://apple/z",
+            "feedUrl": "https://feed/z",
+        },
+    ]
+}
+
+
+def respond(url, params):
+    if "googleapis" in url:
+        return FakeResponse(200, YT_BODY)
+    if "podcastindex" in url:
+        return FakeResponse(200, PI_BODY)
+    return FakeResponse(200, ITUNES_BODY)
+
+
+@pytest.fixture
+def seeds_file(tmp_path):
+    rows = [
+        [
+            "S1",
+            "YouTuber/Video-First Creator",
+            "tech",
+            "youtube",
+            "tech reviews; gadget channel",
+            "x",
+            1000,
+            5000,
+            "active",
+        ],
+        ["S2", "Podcaster/Video Podcaster", "biz", "podcast", "business podcast", "x", None, None, "active"],
+        ["S3", "Expert-Led Creator", "coach", "youtube", "life coach", "x", 1000, 5000, "paused"],
+    ]
+    cols = ["seed_id", "segment", "niche", "primary_platform", "discovery_keywords", "need_signal_to_check",
+            "size_min", "size_max", "status"]  # fmt: skip
+    path = tmp_path / "seeds.csv"
+    pd.DataFrame(rows, columns=cols).to_csv(path, index=False)
+    return path
+
+
+@pytest.fixture(autouse=True)
+def keys(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "yt")
+    monkeypatch.setenv("PODCASTINDEX_API_KEY", "pk")
+    monkeypatch.setenv("PODCASTINDEX_API_SECRET", "ps")
+
+
+def test_candidates_found_and_deduped(conn, config, fake_http, seeds_file):
+    fake_http(respond)
+    c = discover.run(conn, config, seeds_file)
+    # UC_A and UC_B appear under both YouTube keywords but are kept once each.
+    assert sorted(c.loc[c.platform == "youtube", "platform_id"]) == ["UC_A", "UC_B"]
+    # Show X is in Podcast Index and iTunes with the same iTunes ID: one row.
+    assert sorted(c.loc[c.platform == "podcast", "platform_id"]) == ["itunes:555", "itunes:999", "podcastindex:12"]
+    assert not c.duplicated(["platform", "platform_id"]).any()
+    assert list(c.columns) == discover.CANDIDATE_COLUMNS
+
+
+def test_first_hit_keeps_its_query_and_seed(conn, config, fake_http, seeds_file):
+    fake_http(respond)
+    c = discover.run(conn, config, seeds_file).set_index("platform_id")
+    assert c.loc["UC_A", "query"] == "tech reviews"
+    assert c.loc["UC_A", "seed_id"] == "S1"
+    assert c.loc["itunes:999", "source"] == "podcastindex"  # Podcast Index is searched before iTunes
+
+
+def test_paused_seed_skipped(conn, config, fake_http, seeds_file):
+    fake = fake_http(respond)
+    discover.run(conn, config, seeds_file)
+    assert all(call["params"].get("q") != "life coach" for call in fake.calls)
+
+
+def test_one_call_per_keyword_and_source(conn, config, fake_http, seeds_file):
+    fake = fake_http(respond)
+    discover.run(conn, config, seeds_file)
+    stores = len(config["discover"]["itunes_stores"])
+    # 2 YouTube keywords + 1 podcast keyword x (Podcast Index + one iTunes call per configured store)
+    assert len(fake.calls) == 2 + 1 + stores
+
+
+def test_rerun_makes_no_api_calls(conn, config, fake_http, seeds_file):
+    fake = fake_http(respond)
+    first = discover.run(conn, config, seeds_file)
+    calls_first_run = len(fake.calls)
+    second = discover.run(conn, config, seeds_file)
+    assert len(fake.calls) == calls_first_run  # every call on the rerun came from the cache
+    pd.testing.assert_frame_equal(first.reset_index(drop=True), second.reset_index(drop=True))
+
+
+def test_table_written(conn, config, fake_http, seeds_file):
+    fake_http(respond)
+    discover.run(conn, config, seeds_file)
+    assert pd.read_sql("SELECT * FROM candidates", conn).shape[0] == 5
+
+
+def test_failed_search_logged_and_skipped(conn, config, fake_http, seeds_file):
+    def flaky(url, params):
+        return FakeResponse(500) if params.get("q") == "tech reviews" else respond(url, params)
+
+    fake_http(flaky)
+    c = discover.run(conn, config, seeds_file)
+    # The failed keyword is skipped; the other YouTube keyword still finds both channels.
+    assert sorted(c.loc[c.platform == "youtube", "query"].unique()) == ["gadget channel"]
+
+
+def test_quota_exceeded_stops_youtube(conn, config, fake_http, seeds_file):
+    quota = FakeResponse(403, {"error": {"errors": [{"reason": "quotaExceeded"}]}})
+    fake = fake_http(lambda url, params: quota if "googleapis" in url else respond(url, params))
+    c = discover.run(conn, config, seeds_file)
+    assert sum("googleapis" in call["url"] for call in fake.calls) == 1  # no second YouTube call
+    assert (c.platform == "podcast").all()  # podcasts still discovered
+
+
+def test_missing_youtube_key_skips_youtube(conn, config, fake_http, seeds_file, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "")
+    fake = fake_http(respond)
+    discover.run(conn, config, seeds_file)
+    assert not any("googleapis" in call["url"] for call in fake.calls)

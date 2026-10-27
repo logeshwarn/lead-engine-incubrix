@@ -2,11 +2,11 @@
 
 Update this file when a stage or one of its rules changes.
 
-Each stage is one file in `engine/`. It reads a table and writes a table, so it can be run on its own. Stage tables live in SQLite, so a crashed run resumes from the last finished stage.
+Each stage is one file in `engine/`. It reads a table and writes a table, so it can be run on its own. Stage tables live in SQLite (`<out>/engine.db`), so a crashed run resumes from the last finished stage.
 
 | # | Stage | File | Input | Output | Status |
 |---|---|---|---|---|---|
-| 1 | discover | `engine/discover.py` | `data/seeds.csv` | candidate creators (platform ID, URL, source, query) | not built |
+| 1 | discover | `engine/discover.py` | `data/seeds.csv` | `candidates` table (platform ID, URL, source, query) | **built** |
 | 2 | enrich | `engine/enrich.py` | candidates | profile, recent uploads, links, public contact info (cached) | not built |
 | 3 | verify | `engine/verify.py` | enriched candidates | 7 checks with an evidence quote and URL each; failures go to `rejected.csv` | not built |
 | 4 | dedupe | `engine/dedupe.py` | verified | one row per creator (platform ID, domain, email) | not built |
@@ -15,6 +15,14 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 7 | route | `engine/route.py` | scored | best channel and backup channel | not built |
 | 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
 | 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | not built |
+
+Shared helpers live in `engine/common.py`:
+- config loading and one log file per run
+- the SQLite connection
+- `cached_get`: every API call goes through the cache, with retries
+- the `leads.csv` schema
+
+`run.py` runs the built stages in order.
 
 ## Seeds (`data/seeds.csv`)
 
@@ -31,19 +39,45 @@ Each row is a niche to search, not a lead. `tests/test_seeds.py` checks the file
 | `size_min`, `size_max` | subscriber range for YouTube seeds. Blank for podcasts (no public audience count) |
 | `status` | `active` (searched) or `paused` (skipped) |
 
-The current file has 42 seeds: 84 YouTube terms (about 8,400 quota units for one uncached pass) and 29 podcast terms.
+The current file has 42 seeds. One uncached pass makes:
+- 84 YouTube searches, about 8,400 quota units
+- 29 Podcast Index calls
+- 29 iTunes calls
 
-Shared helpers live in `engine/common.py` (config loading, per-run logging). `run.py` runs the stages in order.
+## Stage 1: discover
+
+- **Input:** active rows of the seeds file.
+- **Searches per keyword:**
+  - YouTube seeds: one `search.list` with `type=channel`, 50 results, English relevance.
+  - Podcast seeds: one Podcast Index `search/byterm` (100 results), then one iTunes Search per store in `discover.itunes_stores` (default US, 50 results).
+- **Output:** the `candidates` table. One row per `(platform, platform_id)`:
+
+  | Column | Meaning |
+  |---|---|
+  | `platform` | `youtube` or `podcast` |
+  | `platform_id` | YouTube channel ID (`UC...`), or `itunes:<id>`, or `podcastindex:<id>` when the show has no iTunes ID. Both directories share the iTunes ID, so a show found in both gets one row |
+  | `name`, `url`, `description`, `website`, `feed_url`, `language` | as the source returned them. Blank when the source does not give them, never filled in |
+  | `itunes_store_country` | the Apple store that listed the show. A hint, not the creator's country |
+  | `source`, `query`, `seed_id`, `segment`, `niche` | where the row came from, for tracing evidence |
+  | `discovered_at` | date (UTC) |
+
+- **Duplicates:** when the same creator is found by several keywords or sources, the first hit is kept, in seed-file order.
+- **Rerunnable:** the table is rebuilt from the cache each run. A rerun inside the cache window (`cache.search_max_age_days`, 7 days) makes no API calls. Results older than that are fetched again, so a weekly rerun picks up new creators.
+- **Not judged here:** discover keeps everything it finds, including agencies and brands. Verify removes them.
+
+Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
+- 90 unique candidates (50 YouTube, 40 podcast) in 29.5 s
+- the rerun took 0.1 s with 0 live calls
 
 ## Output format (`leads.csv`)
 
-The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook order, as `LEADS_COLUMNS` in `engine/common.py`. Allowed values:
+`leads.csv` holds **qualified creators only**. Rejected creators go to `rejected.csv` with a reason. The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook order, as `LEADS_COLUMNS` in `engine/common.py`. Allowed values:
 
 - `creator_segment`: the 3 segments in `config.yaml`
 - `country_iso2`: the approved list in `config.yaml`, or `Other`
 - `best_channel` and `backup_channel`: `CHANNELS`
 - `priority`: `A`, `B` or `C`
-- `candidate_status`: `Qualified` or `Rejected`
+- `candidate_status`: `Qualified` in `leads.csv` (`Rejected` only appears in `rejected.csv`)
 
 `tests/test_leads_schema.py` fails if any of these drift from the workbook.
 
@@ -55,17 +89,33 @@ The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook ord
 
 ## Qualification checks (all must pass, each with a working public link)
 
-1. **Real and relevant**: real creator, approved segment and country, official profile, stable platform ID.
-2. **Active**: 8+ items in 30 days, or 2+ long-form items in 60 days.
-3. **Commercial**: public sponsorship, product, service, course, membership or affiliate evidence.
-4. **Needs IncuBrix**: public sign of a content creation, editing, captions, repurposing, publishing, consistency, backlog or team workflow need.
-5. **Reachable**: real public business channel, active in the last 60 days, never guessed.
-6. **Personalised and compliant**: cites a specific recent piece of content, names the sender, includes an opt-out.
-7. **Complete and unique**: all fields filled, evidence checked within 30 days, no duplicates.
+Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf` (section 3). Where they differ, the stricter rule wins.
+
+1. **Real and relevant**
+   - A real creator in an approved segment and country, with an official profile and a stable platform ID.
+   - **Excluded:** agencies, management firms, generic brands, publications, directories and fan accounts.
+2. **Active**
+   - 8+ items in 30 days, or 2+ long-form items (20 minutes or more) in 60 days.
+3. **Commercial**
+   - Public sponsorship, product, service, course, membership, subscription or affiliate evidence.
+   - The evidence is a verbatim quote plus its URL.
+4. **Needs IncuBrix**
+   - A need in content creation, repurposing, editing, captions, publishing, consistency, backlog or team workflow. Two kinds of evidence count, each with a link:
+     - (a) an **observed gap** in their public content, for example no captions on recent videos, or long episodes with no Shorts or clips, or irregular gaps between uploads;
+     - (b) the creator's **own words**, for example "hiring an editor". This scores higher.
+5. **Reachable**
+   - The channel is real, public, presented by the creator for business contact, and active in the last 60 days.
+   - Never guessed. The YouTube "About" email is behind a captcha and is never used.
+6. **Personalised and compliant**
+   - The message cites a specific recent piece of content, names the sender and includes an opt-out.
+   - It follows platform rules: LinkedIn, Instagram and X messages are drafts for a person to send by hand, with no bulk automation.
+   - The sender must not be presented as an IncuBrix employee.
+7. **Complete and unique**
+   - All workbook fields are filled, evidence was checked within 30 days, and the creator appears once.
 
 ## Hard constraints (run fails loudly if broken)
 
-- At least 80% of leads from US, CA, UK, IE, AU, NZ, SG
+- At least 80% of leads from US, CA, GB, IE, AU, NZ, SG
 - At least 3 countries
 - No country above 60%
 - Mainly English content
@@ -74,6 +124,11 @@ All values are in `config.yaml`.
 
 ## Failure handling
 
-- HTTP calls: retry 3 times with backoff, then log the error and skip the row. No row is ever filled with guessed data.
-- Config: `run.py` stops at start-up if `config.yaml` is missing a required section.
-- Each run writes its own log file to `output/logs/`.
+- **HTTP calls (`cached_get`):** network errors, HTTP 429 and 5xx are retried 3 times with exponential backoff.
+  - Other errors (for example 403) are not retried.
+  - Either way the failure is logged to `api_log` and the log file, and the search or row is skipped. Failures are never cached and never filled with guessed data.
+- **YouTube daily quota used up (`quotaExceeded`):** the remaining YouTube searches are skipped for this run. The next run resumes, because finished searches are cached.
+- **Missing API key:** that source is skipped with an error in the log, and the other sources still run.
+- **Missing input file:** `run.py` stops with exit code 1.
+- **Config:** `run.py` stops at start-up if `config.yaml` is missing a required section.
+- **Logs:** each run writes its own log file to `<out>/logs/`.

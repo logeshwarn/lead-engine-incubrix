@@ -28,7 +28,13 @@ def test_config_loads_with_brief_values():
     assert config["countries"]["min_approved_share"] == 0.80
     assert config["countries"]["min_countries"] == 3
     assert config["countries"]["max_country_share"] == 0.60
-    assert config["activity"] == {"recent_items": 8, "recent_days": 30, "long_form_items": 2, "long_form_days": 60}
+    assert config["activity"] == {
+        "recent_items": 8,
+        "recent_days": 30,
+        "long_form_items": 2,
+        "long_form_days": 60,
+        "long_form_min_minutes": 20,
+    }
     assert config["http"]["retries"] == 3
     assert config["evidence"]["max_age_days"] == 30
     assert config["priority_a"]["count"] == 25

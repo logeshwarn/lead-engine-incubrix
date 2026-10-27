@@ -7,11 +7,15 @@ python run.py --refresh
 import argparse
 import logging
 import sys
+import time
+from pathlib import Path
 
-from engine.common import load_config, setup_logging
+from engine import discover
+from engine.common import connect_db, load_config, setup_logging
 
 # Pipeline order from docs/WORKFLOW.md. Each name becomes engine/<name>.py as it is built.
 STAGES = ["discover", "enrich", "verify", "dedupe", "caps", "score", "route", "draft", "export"]
+BUILT = ["discover"]
 
 
 def parse_args(argv=None):
@@ -32,11 +36,19 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     config = load_config(args.config)
-    log_file = setup_logging(config["paths"]["logs"])
+    log_file = setup_logging(Path(args.out) / "logs")
     log = logging.getLogger("run")
     log.info("run started: input=%s out=%s refresh=%s log=%s", args.input, args.out, args.refresh, log_file)
-    # No stages are built yet (Phase 0). Say so plainly rather than pretend to run.
-    log.warning("no pipeline stages implemented yet; planned order: %s", " -> ".join(STAGES))
+    if not Path(args.input).is_file():
+        log.error("input file not found: %s", args.input)
+        return 1
+    conn = connect_db(args.out)
+    started = time.monotonic()
+    discover.run(conn, config, args.input)
+    # Say plainly which stages are still missing rather than pretend the run is complete.
+    log.warning("stages not built yet: %s", ", ".join(s for s in STAGES if s not in BUILT))
+    log.info("run finished in %.1f s", time.monotonic() - started)
+    conn.close()
     return 0
 
 

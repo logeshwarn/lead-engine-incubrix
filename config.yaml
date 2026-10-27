@@ -2,13 +2,22 @@
 # Every value here comes from docs/BRIEF.pdf unless DECISIONS.md says otherwise.
 # Secrets never go here: they live in .env (see .env.example).
 
-paths:
-  db: output/engine.db        # SQLite: candidates, API cache, run state
-  logs: output/logs           # one log file per run
+# Database (engine.db) and logs (logs/) are written inside the --out folder.
 
 http:
   retries: 3                  # brief: retry 3 times, then log and skip the row
   backoff_seconds: 2          # base wait between retries (doubles each attempt)
+  timeout_seconds: 20
+
+cache:
+  search_max_age_days: 7      # discovery searches are reused for a week, so a weekly rerun finds new creators
+
+discover:
+  youtube_max_results: 50     # per search.list call (API maximum); each call costs 100 quota units
+  podcastindex_max_results: 100
+  itunes_limit: 50            # per store per term
+  itunes_stores: [US]         # 2026-10-27 test: all 7 approved-country stores returned the same 38 shows (DECISIONS.md)
+  itunes_pause_seconds: 3     # Apple allows roughly 20 calls a minute; only applied to uncached calls
 
 segments:                     # approved segments, spelled exactly as the Submission Workbook dropdown
   - Podcaster/Video Podcaster
@@ -31,7 +40,7 @@ activity:
   recent_days: 30             # ... in 30 days
   long_form_items: 2          # or 2+ long-form items ...
   long_form_days: 60          # ... in 60 days
-  # long_form_min_minutes: not set yet; the brief does not define long-form (decide in Phase 2)
+  long_form_min_minutes: 20   # decision 2026-10-28, see DECISIONS.md
 
 reachable:
   channel_active_days: 60     # contact channel must show activity in the last 60 days

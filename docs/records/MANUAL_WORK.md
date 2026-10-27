@@ -12,6 +12,10 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-27 | Owner | Initialised git and made the first commit (`b193818`, Phase 0 files) | `.env` is not in the commit | not recorded |
 | 2026-10-27 | Owner | Added `docs/Submission_Workbook.xlsx` (file dated 2026-10-25) | Gives the 30 `leads.csv` columns and the allowed segment, country, channel and priority values | not recorded |
 | 2026-10-27 | Owner | Drafted the seed list with Claude web (claude.ai) and moved it to `data/seeds.csv` | 42 rows. The original is kept as `data/seeds_original.csv`; Claude Code corrected it (see CHANGELOG) | not recorded |
+| 2026-10-27 | Owner | Shared a screenshot of the qualification rules and asked for an analysis and plan | Plan written; the rules were merged into `docs/WORKFLOW.md` | not recorded |
+| 2026-10-27 | Owner | Added the assignment `docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf` | Used as a rules source alongside the brief | not recorded |
+| 2026-10-27 | Owner | Committed and pushed Phase 0 (`1a50bc1 phase 0`) | In sync with `origin/main`; `.env` not tracked | not recorded |
+| 2026-10-27 | Owner | Delegated four open decisions to Claude Code ("choose the best") | Need evidence = observed gap or own words; long-form = 20 min; `leads.csv` qualified-only; assignment PDF as rules source (DECISIONS.md) | not recorded |
 
 ## Pending (not done yet)
 

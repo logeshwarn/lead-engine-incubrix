@@ -4,7 +4,9 @@ A small Python engine that finds content creators (podcasters, YouTubers, expert
 
 The full brief is in [docs/BRIEF.pdf](docs/BRIEF.pdf).
 
-**Status:** Phase 0 (setup) is done, and API access for YouTube and Podcast Index is confirmed. The pipeline stages are not built yet, so a run only loads the config, writes a log and lists the planned stages. See [docs/PHASES.md](docs/PHASES.md).
+The assignment it answers is in [docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf](docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf).
+
+**Status:** Phase 1 is in progress. Stage 1 (discover) is built: a run searches YouTube, Podcast Index and iTunes for every active seed and saves the candidates. The later stages are not built yet, and the run log lists them. See [docs/PHASES.md](docs/PHASES.md).
 
 ## Setup (Windows, Python 3.11+)
 
@@ -42,10 +44,12 @@ python run.py --refresh
 
 `python run.py --help` lists the same flags.
 
+**Quota warning:** an uncached run over the full `data/seeds.csv` makes 84 YouTube searches, about 8,400 of the 10,000 free daily units. A rerun within 7 days is served from the cache and costs nothing. To try the engine cheaply, copy a few rows of `data/seeds.csv` into a new file and pass it with `--input`.
+
 ## Config
 
 - `data/seeds.csv`: the niches and search terms to discover from. Each row is a niche, not a lead. The columns are explained in [docs/WORKFLOW.md](docs/WORKFLOW.md). Set `status` to `paused` to skip a row.
-- `config.yaml`: thresholds, country and segment caps, activity rules and evidence age. Values come from the brief, and segment and country names come from the Submission Workbook. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
+- `config.yaml`: thresholds, country and segment caps, activity rules, evidence age, the cache window (`cache`) and search sizes (`discover`). Values come from the brief, and segment and country names come from the Submission Workbook. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
 - `.env`: API keys only. `.env.example` lists the keys you need.
 
 ## Outputs
@@ -59,6 +63,7 @@ These are planned and will exist once the export stage is built (Phase 5):
 
 Already produced today:
 
+- `output/engine.db`: SQLite database. It holds the API cache, the API call log and the `candidates` table from discover. Delete it to start from scratch, which spends the quota again.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run
 
 ## Tests and lint
@@ -77,6 +82,8 @@ python -m ruff check .
 - **`config.yaml is missing sections: ...`**: a required section was deleted from `config.yaml`. Restore it from git.
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for YouTube**: the key is wrong, the YouTube Data API v3 is not enabled in the Google Cloud project, or the daily quota is used up.
 - **`check_apis.py` says FAIL with HTTP 401 for Podcast Index**: the key or secret is wrong, or your PC clock is off. The auth uses the current time.
+- **Log says `YouTube daily quota used up`**: the remaining YouTube searches were skipped. Run again after the quota resets (midnight Pacific time). Finished searches are cached, so the run continues where it stopped.
+- **`input file not found`**: check the `--input` path.
 
 ## Docs
 

@@ -1,0 +1,222 @@
+"""Stage 1, discover: seed keywords -> candidate creators.
+
+Reads data/seeds.csv (active rows) and writes the `candidates` table: one row per
+creator per platform with its platform ID, URL, source and the query that found it.
+Nothing here judges quality; verify does that. Every API call goes through the cache.
+"""
+
+import logging
+import os
+import time
+
+import pandas as pd
+
+from engine.common import ApiError, cached_get, now_utc, podcastindex_headers
+
+log = logging.getLogger("discover")
+
+YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+PODCASTINDEX_SEARCH_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
+ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
+
+CANDIDATE_COLUMNS = [
+    "platform",  # youtube | podcast
+    "platform_id",  # YouTube channel ID, or itunes:<id> / podcastindex:<id> for podcasts
+    "name",
+    "url",
+    "description",
+    "website",
+    "feed_url",
+    "language",
+    "itunes_store_country",  # the Apple store that listed it: a hint only, not the creator's country
+    "source",  # youtube | podcastindex | itunes
+    "query",
+    "seed_id",
+    "segment",
+    "niche",
+    "discovered_at",
+]
+
+
+def load_seeds(path):
+    seeds = pd.read_csv(path, dtype=str)
+    return seeds[seeds["status"] == "active"]
+
+
+def keywords(seed):
+    return [k.strip() for k in seed["discovery_keywords"].split(";") if k.strip()]
+
+
+def podcast_id(itunes_id, podcastindex_id):
+    # The iTunes ID is shared by both directories, so the same show found in either gets one ID.
+    return f"itunes:{itunes_id}" if itunes_id else f"podcastindex:{podcastindex_id}"
+
+
+def youtube_rows(data):
+    rows = []
+    for item in data.get("items", []):
+        channel_id = item.get("id", {}).get("channelId") or item.get("snippet", {}).get("channelId")
+        if not channel_id:
+            continue  # without a stable ID the row cannot be verified, so skip it
+        snippet = item.get("snippet", {})
+        rows.append(
+            {
+                "platform": "youtube",
+                "platform_id": channel_id,
+                "name": snippet.get("channelTitle") or snippet.get("title"),
+                "url": f"https://www.youtube.com/channel/{channel_id}",
+                "description": snippet.get("description"),
+                "source": "youtube",
+            }
+        )
+    return rows
+
+
+def podcastindex_rows(data):
+    rows = []
+    for feed in data.get("feeds", []):
+        if not feed.get("id"):
+            continue
+        rows.append(
+            {
+                "platform": "podcast",
+                "platform_id": podcast_id(feed.get("itunesId"), feed["id"]),
+                "name": feed.get("title"),
+                "url": f"https://podcastindex.org/podcast/{feed['id']}",
+                "description": feed.get("description"),
+                "website": feed.get("link"),
+                "feed_url": feed.get("url"),
+                "language": feed.get("language"),
+                "source": "podcastindex",
+            }
+        )
+    return rows
+
+
+def itunes_rows(data, store_country):
+    rows = []
+    for show in data.get("results", []):
+        if not show.get("collectionId"):
+            continue
+        rows.append(
+            {
+                "platform": "podcast",
+                "platform_id": podcast_id(show["collectionId"], None),
+                "name": show.get("collectionName"),
+                "url": show.get("collectionViewUrl"),
+                "feed_url": show.get("feedUrl"),
+                "itunes_store_country": store_country,
+                "source": "itunes",
+            }
+        )
+    return rows
+
+
+def search_youtube(conn, config, keyword, api_key):
+    params = {
+        "part": "snippet",
+        "q": keyword,
+        "type": "channel",
+        "maxResults": config["discover"]["youtube_max_results"],
+        "relevanceLanguage": config["language"]["required"],
+        "key": api_key,
+    }
+    data, _ = cached_get(
+        conn, "youtube.search", YOUTUBE_SEARCH_URL, params, config["http"], config["cache"]["search_max_age_days"]
+    )
+    return youtube_rows(data)
+
+
+def search_podcastindex(conn, config, keyword, api_key, api_secret):
+    params = {"q": keyword, "max": config["discover"]["podcastindex_max_results"]}
+    data, _ = cached_get(
+        conn,
+        "podcastindex.search",
+        PODCASTINDEX_SEARCH_URL,
+        params,
+        config["http"],
+        config["cache"]["search_max_age_days"],
+        headers_fn=lambda: podcastindex_headers(api_key, api_secret),
+    )
+    return podcastindex_rows(data)
+
+
+def search_itunes(conn, config, keyword, country):
+    params = {
+        "term": keyword,
+        "media": "podcast",
+        "entity": "podcast",
+        "country": country.lower(),
+        "limit": config["discover"]["itunes_limit"],
+    }
+    data, was_cached = cached_get(
+        conn, "itunes.search", ITUNES_SEARCH_URL, params, config["http"], config["cache"]["search_max_age_days"]
+    )
+    if not was_cached:
+        time.sleep(config["discover"]["itunes_pause_seconds"])  # stay under Apple's rate limit
+    return itunes_rows(data, country)
+
+
+def run(conn, config, seeds_path):
+    """Search every active seed keyword and write the `candidates` table."""
+    seeds = load_seeds(seeds_path)
+    yt_key = os.getenv("YOUTUBE_API_KEY", "")
+    pi_key, pi_secret = os.getenv("PODCASTINDEX_API_KEY", ""), os.getenv("PODCASTINDEX_API_SECRET", "")
+    youtube_on, podcastindex_on = bool(yt_key), bool(pi_key and pi_secret)
+    if not youtube_on:
+        log.error("YOUTUBE_API_KEY is empty: skipping YouTube discovery")
+    if not podcastindex_on:
+        log.error("Podcast Index key or secret is empty: skipping Podcast Index discovery (iTunes still runs)")
+
+    rows, failures = [], 0
+    for _, seed in seeds.iterrows():
+        for keyword in keywords(seed):
+            found = []
+            if seed["primary_platform"] == "youtube" and youtube_on:
+                try:
+                    found += search_youtube(conn, config, keyword, yt_key)
+                except ApiError as e:
+                    failures += 1
+                    log.error("seed %s %r: %s", seed["seed_id"], keyword, e)
+                    if e.reason == "quotaExceeded":
+                        # More calls today would all fail; the next run resumes from the cache.
+                        log.error("YouTube daily quota used up: skipping remaining YouTube searches")
+                        youtube_on = False
+            elif seed["primary_platform"] == "podcast":
+                # Podcast Index first, then each iTunes store in config (one is enough: stores overlap fully).
+                searches = []
+                if podcastindex_on:
+                    searches.append(("podcastindex", search_podcastindex, (conn, config, keyword, pi_key, pi_secret)))
+                for country in config["discover"]["itunes_stores"]:
+                    searches.append((f"itunes {country}", search_itunes, (conn, config, keyword, country)))
+                for name, search, search_args in searches:
+                    try:
+                        found += search(*search_args)
+                    except ApiError as e:
+                        failures += 1
+                        log.error("seed %s %r %s: %s", seed["seed_id"], keyword, name, e)
+            for row in found:
+                row.update(
+                    query=keyword,
+                    seed_id=seed["seed_id"],
+                    segment=seed["segment"],
+                    niche=seed["niche"],
+                    discovered_at=now_utc().date().isoformat(),
+                )
+            rows += found
+
+    candidates = pd.DataFrame(rows, columns=CANDIDATE_COLUMNS)
+    found_total = len(candidates)
+    # Same creator from several keywords or sources: keep the first hit (seed order is the owner's priority).
+    candidates = candidates.drop_duplicates(["platform", "platform_id"], keep="first")
+    # Rebuilt from the cache every run, so replacing the table is safe and keeps the stage rerunnable.
+    candidates.to_sql("candidates", conn, if_exists="replace", index=False)
+    log.info(
+        "%d seeds, %d hits, %d unique candidates (%s), %d failed searches",
+        len(seeds),
+        found_total,
+        len(candidates),
+        candidates["platform"].value_counts().to_dict(),
+        failures,
+    )
+    return candidates
