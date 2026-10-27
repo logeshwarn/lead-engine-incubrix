@@ -33,8 +33,7 @@ Also finished (2026-10-27):
 - `leads.csv` columns locked to the 30 columns in workbook tab `02_LEADS` (`LEADS_COLUMNS` in `engine/common.py`), with allowed channel, priority and status values. `tests/test_leads_schema.py` re-reads the workbook.
 - API access confirmed on 2026-10-27 22:28 IST with `python check_apis.py`: YouTube Data API v3 PASS (HTTP 200, 1 quota unit), Podcast Index PASS (HTTP 200).
 
-Moved to a later phase:
-- LLM provider choice and access check. The owner deferred it; it is needed by Phase 4 at the latest.
+Later added (2026-10-27): the LLM provider is Google Gemini, and access was confirmed at 23:25 IST with `python check_apis.py` (HTTP 200, 0 tokens).
 
 Open questions resolved on 2026-10-27 (see DECISIONS.md): `leads.csv` holds qualified creators only; long-form means 20 minutes or more.
 

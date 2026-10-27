@@ -15,6 +15,7 @@ from engine.common import podcastindex_headers
 
 YOUTUBE_URL = "https://www.googleapis.com/youtube/v3/videoCategories"
 PODCASTINDEX_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
+GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 TIMEOUT = 20
 
 
@@ -55,6 +56,27 @@ def check_podcastindex(key, secret):
     return True, f"HTTP 200, status={body.get('status')}, {body.get('count', 0)} feed returned"
 
 
+def check_gemini(key):
+    # Listing models uses no tokens, so the check is free. The key goes in a header, not the URL.
+    if not key:
+        return False, "LLM_API_KEY is empty in .env"
+    try:
+        r = requests.get(GEMINI_MODELS_URL, headers={"x-goog-api-key": key}, timeout=TIMEOUT)
+    except requests.RequestException as e:
+        return False, f"network error ({type(e).__name__})"
+    if r.status_code != 200:
+        reason = (
+            r.json().get("error", {}).get("status", "")
+            if r.headers.get("content-type", "").startswith("application/json")
+            else ""
+        )
+        return False, f"HTTP {r.status_code} {reason}".strip()
+    models = [
+        m["name"] for m in r.json().get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])
+    ]
+    return True, f"HTTP 200, {len(models)} text models available (cost: 0 tokens)"
+
+
 def main():
     load_dotenv()
     results = {
@@ -62,6 +84,7 @@ def main():
         "Podcast Index API": check_podcastindex(
             os.getenv("PODCASTINDEX_API_KEY", ""), os.getenv("PODCASTINDEX_API_SECRET", "")
         ),
+        "Google Gemini API": check_gemini(os.getenv("LLM_API_KEY", "")),
     }
     for name, (ok, detail) in results.items():
         print(f"{'PASS' if ok else 'FAIL'}  {name}: {detail}")

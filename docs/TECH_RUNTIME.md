@@ -22,14 +22,14 @@ Update this file when a library, API or data store changes. "Used by" lists only
 
 ## APIs
 
-YouTube and Podcast Index access was confirmed on 2026-10-27 with `python check_apis.py` (both HTTP 200). That check costs 1 YouTube unit and 1 Podcast Index call. The LLM is not chosen yet.
+Access to all three keyed APIs was confirmed on 2026-10-27 with `python check_apis.py`: YouTube and Podcast Index at 22:28 IST, Gemini at 23:25 IST, all HTTP 200. The check costs 1 YouTube unit, 1 Podcast Index call and 0 Gemini tokens.
 
 | API | Endpoint used | Purpose | Quota or cost | Key in `.env` | Used by |
 |---|---|---|---|---|---|
 | YouTube Data API v3 | `search.list` (`type=channel`) | find channels per keyword | 10,000 units/day by default (Google's documented default; check your project). `search.list` costs **100 units**, so one call per keyword, cached 7 days. Prefer `channels.list` and `playlistItems.list` (1 unit) for enrichment | `YOUTUBE_API_KEY` | `engine/discover.py`, `check_apis.py`; enrich *(planned)* |
 | Podcast Index API | `search/byterm` | find podcasts per keyword | free tier | `PODCASTINDEX_API_KEY`, `PODCASTINDEX_API_SECRET` | `engine/discover.py`, `check_apis.py` |
 | iTunes Search API | `/search?media=podcast` | find podcasts per keyword | free, no key. Apple allows roughly 20 calls a minute, so there is a 3 s pause after each uncached call | none | `engine/discover.py` |
-| LLM (provider not chosen) | n/a | drafting, and possibly unclear classification cases; JSON output only; may only quote supplied text and must return an evidence quote and URL | to be recorded once chosen | `LLM_API_KEY` | draft *(planned)* |
+| Google Gemini API (AI Studio key) | `models` list (access check); `generateContent` (drafting, *planned*) | drafting personalised lines, and possibly unclear classification cases. JSON output only; may only quote supplied text and must return an evidence quote and URL | free tier; rate limits and any cost recorded in Phase 4 from Google's current docs. Estimate about 2-3M tokens per full drafting run. Key sent in the `x-goog-api-key` header, never in the URL | `LLM_API_KEY` | `check_apis.py`; draft *(planned)* |
 
 One uncached discover pass over the current `data/seeds.csv`:
 - 84 YouTube `search.list` calls, about 8,400 of the 10,000 daily units

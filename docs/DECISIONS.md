@@ -4,6 +4,9 @@ A short log of non-obvious choices, thresholds and trade-offs. Newest first.
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-10-27 | LLM provider is **Google Gemini** (AI Studio key, free tier). It is called with plain `requests`, so there is no SDK dependency. | Owner chose it and supplied the key. Free tier means no unrefundable spend. Rules-first verify means the LLM is only needed for drafting. |
+| 2026-10-27 | Sender line: "Logeshwaran, final year IT student at TCE" (`sender` in `config.yaml`). | Owner's own identity. The assignment forbids presenting the sender as an IncuBrix employee. |
+| 2026-10-27 | Email postal address is a placeholder, `{sender_postal_address}`, for IncuBrix to fill at launch. | CAN-SPAM requires a valid physical postal address (a street address or PO box) in commercial email to US recipients. The seed test only goes to the owner's own test accounts, so the owner's home address is not needed or published. The Phase 4 checker will flag the placeholder as "fill before real sending". |
 | 2026-10-27 | iTunes is searched in the US store only (`discover.itunes_stores`), not all 7 approved-country stores. | Live test on "founder interviews podcast": all 7 stores returned the same 38 shows (0 new outside US). Searching each store would add about 174 calls and 9 minutes per full run for nothing. The setting stays configurable. |
 | 2026-10-27 | Discovery searches are cached for 7 days (`cache.search_max_age_days`). | A rerun within the week costs no quota (Phase 1 rule), and a weekly rerun still finds new creators. |
 | 2026-10-27 | The database and logs live in the `--out` folder (`<out>/engine.db`, `<out>/logs/`), not at fixed paths in config. | Running with a different `--out`, for example IncuBrix's own test input in the live review, cannot mix with the main run. |

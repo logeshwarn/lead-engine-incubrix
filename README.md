@@ -19,7 +19,7 @@ copy .env.example .env
 
 Then open `.env` and fill in your API keys. `.env` is ignored by git, so never commit it.
 
-Check that the keys work. This costs 1 YouTube quota unit and prints only PASS or FAIL:
+Check that the keys work (YouTube, Podcast Index, Gemini). This costs 1 YouTube quota unit and 0 Gemini tokens, and prints only PASS or FAIL:
 
 ```bash
 python check_apis.py
@@ -82,6 +82,7 @@ python -m ruff check .
 - **`config.yaml is missing sections: ...`**: a required section was deleted from `config.yaml`. Restore it from git.
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for YouTube**: the key is wrong, the YouTube Data API v3 is not enabled in the Google Cloud project, or the daily quota is used up.
 - **`check_apis.py` says FAIL with HTTP 401 for Podcast Index**: the key or secret is wrong, or your PC clock is off. The auth uses the current time.
+- **`check_apis.py` says FAIL with HTTP 400 or 403 for Gemini**: the key is wrong or restricted. Create a new one at https://aistudio.google.com (Get API key).
 - **Log says `YouTube daily quota used up`**: the remaining YouTube searches were skipped. Run again after the quota resets (midnight Pacific time). Finished searches are cached, so the run continues where it stopped.
 - **`input file not found`**: check the `--input` path.
 

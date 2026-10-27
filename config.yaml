@@ -56,3 +56,13 @@ targets:
   min_leads: 1000
 
 # scoring weights: added in Phase 3 and explained in docs/DECISIONS.md
+
+sender:                       # used by draft (Phase 4); must not claim to be IncuBrix staff (assignment section 8)
+  name: Logeshwaran
+  description: final year IT student at TCE
+  postal_address: "{sender_postal_address}"  # CAN-SPAM needs a real postal address in commercial email;
+                                             # left as a placeholder for IncuBrix to fill at launch (DECISIONS.md)
+
+llm:
+  provider: gemini            # Google Gemini API (AI Studio key in .env as LLM_API_KEY); access checked 2026-10-27
+  # model: chosen in Phase 4 from the models the key can use

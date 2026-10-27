@@ -17,9 +17,11 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-27 | Owner | Committed and pushed Phase 0 (`1a50bc1 phase 0`) | In sync with `origin/main`; `.env` not tracked | not recorded |
 | 2026-10-27 | Owner | Delegated four open decisions to Claude Code ("choose the best") | Need evidence = observed gap or own words; long-form = 20 min; `leads.csv` qualified-only; assignment PDF as rules source (DECISIONS.md) | not recorded |
 
+| 2026-10-27 | Owner | Created a Google Gemini API key (AI Studio) and put it in `.env` as `LLM_API_KEY` | `check_apis.py` at 23:25 IST: Gemini PASS (HTTP 200, 0 tokens) | not recorded |
+| 2026-10-27 | Owner | Gave the sender identity for outreach: "Logeshwaran, final year IT student at TCE" | Saved in `config.yaml` (`sender`) | not recorded |
+
 ## Pending (not done yet)
 
 These are not entries. Each one moves to the log once it is done.
 
-- Choose the LLM provider and create its key
 - Review the corrected `data/seeds.csv` and confirm it

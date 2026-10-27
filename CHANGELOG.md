@@ -2,6 +2,14 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-27: LLM provider and sender set
+
+- `check_apis.py` now also checks the Gemini key by listing models (0 tokens, key sent in a header). All three APIs pass.
+- `config.yaml`: added `sender` (name, description, postal-address placeholder) and `llm` (provider: gemini).
+- `.env.example`: `LLM_API_KEY` is now described as the Gemini key.
+- Tests: Gemini check fails cleanly without a key and never puts the key in the URL.
+- Docs: DECISIONS, TECH_RUNTIME, PHASES, README, and both records files.
+
 ## 2026-10-27: Stage 1, discover
 
 - Added `engine/discover.py`: searches YouTube (channels), Podcast Index and iTunes for every active seed keyword, and writes the `candidates` table, one row per creator per platform.

@@ -29,3 +29,31 @@ def test_network_error_hides_key(monkeypatch):
     ok, detail = check_apis.check_youtube("SECRETKEY123")
     assert ok is False
     assert "SECRETKEY123" not in detail
+
+
+def test_gemini_missing_key_fails_without_calling(monkeypatch):
+    def no_network(*args, **kwargs):
+        raise AssertionError("must not call the API without a key")
+
+    monkeypatch.setattr(check_apis.requests, "get", no_network)
+    assert check_apis.check_gemini("")[0] is False
+
+
+def test_gemini_key_sent_in_header_not_url(monkeypatch):
+    seen = {}
+
+    class Ok:
+        status_code = 200
+        headers = {"content-type": "application/json"}
+
+        def json(self):
+            return {"models": [{"name": "m", "supportedGenerationMethods": ["generateContent"]}]}
+
+    def fake_get(url, headers=None, timeout=None, params=None):
+        seen.update(url=url, headers=headers, params=params)
+        return Ok()
+
+    monkeypatch.setattr(check_apis.requests, "get", fake_get)
+    assert check_apis.check_gemini("SECRETKEY")[0] is True
+    assert "SECRETKEY" not in seen["url"] and not seen["params"]
+    assert seen["headers"]["x-goog-api-key"] == "SECRETKEY"
