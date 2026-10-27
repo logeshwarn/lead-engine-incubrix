@@ -1,0 +1,47 @@
+# IncuBrix Lead Engine settings.
+# Every value here comes from docs/BRIEF.pdf unless DECISIONS.md says otherwise.
+# Secrets never go here: they live in .env (see .env.example).
+
+paths:
+  db: output/engine.db        # SQLite: candidates, API cache, run state
+  logs: output/logs           # one log file per run
+
+http:
+  retries: 3                  # brief: retry 3 times, then log and skip the row
+  backoff_seconds: 2          # base wait between retries (doubles each attempt)
+
+segments:                     # approved creator segments
+  - podcaster
+  - youtuber
+  - expert_led_creator
+
+countries:
+  approved: [US, CA, UK, IE, AU, NZ, SG]
+  min_approved_share: 0.80    # at least 80% of final leads from approved countries
+  min_countries: 3            # at least 3 distinct countries
+  max_country_share: 0.60     # no single country above 60%
+
+language:
+  required: en                # mainly English content
+
+activity:
+  recent_items: 8             # 8+ items ...
+  recent_days: 30             # ... in 30 days
+  long_form_items: 2          # or 2+ long-form items ...
+  long_form_days: 60          # ... in 60 days
+  # long_form_min_minutes: not set yet; the brief does not define long-form (decide in Phase 2)
+
+reachable:
+  channel_active_days: 60     # contact channel must show activity in the last 60 days
+
+evidence:
+  max_age_days: 30            # evidence must be checked within 30 days; --refresh re-checks older
+
+priority_a:
+  count: 25                   # top 25 by score are Priority A
+  follow_ups: 2               # Priority A gets a first message + 2 follow-ups
+
+targets:
+  min_leads: 1000
+
+# scoring weights: added in Phase 3 and explained in docs/DECISIONS.md

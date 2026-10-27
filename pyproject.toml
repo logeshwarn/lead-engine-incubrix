@@ -1,0 +1,12 @@
+# Tool settings only (ruff and pytest). Dependencies are pinned in requirements.txt.
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]  # pycodestyle, pyflakes, import order, common bugs
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # lets tests import engine/ without installing the project
