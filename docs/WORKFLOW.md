@@ -10,7 +10,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 2 | enrich | `engine/enrich.py` | `candidates` | `profiles` and `content_items` tables: profile, recent uploads, links, public contact info (cached) | **built** |
 | 3 | verify | `engine/verify.py` | `profiles`, `content_items` | `verified` table: every check with an evidence quote and URL; Qualified or Rejected with reasons (export writes rejects to `rejected.csv`) | **built** |
 | 4 | dedupe | `engine/dedupe.py` | `verified` | `deduped` table: every verified row; one Qualified row per creator (platform ID, website domain, email); duplicates and shared-contact rows Rejected with the reason | **built** |
-| 5 | caps | `engine/caps.py` | deduped | country and segment rules enforced | not built |
+| 5 | caps | `engine/caps.py` | `deduped` | `capped` table (a country above 60% trimmed) and `cap_checks` table (each hard rule, value, limit, passed) | **built** |
 | 6 | score | `engine/score.py` | capped | score from 0 to 100; top 25 flagged Priority A | not built |
 | 7 | route | `engine/route.py` | scored | best channel and backup channel | not built |
 | 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
@@ -159,6 +159,14 @@ Input: the `verified` table. Output: the `deduped` table, the same rows plus `du
 
 The table is rebuilt from `verified` every run, so the stage can be rerun on its own.
 
+## Stage 5: caps
+
+Input: the `deduped` table. Output: the `capped` table (same columns) and the `cap_checks` table.
+
+1. **Trim (owner decision 2026-10-28).** If one country is above 60% of qualified leads (`countries.max_country_share`), its lowest-ranked leads are marked Rejected ("cap: US above 60% of leads (ranked 30 of 33 US leads)") until it is at 60%. The ranking is the same as dedupe's: most recent content, then most contacts, then platform ID. Trimming is skipped when the set has fewer than 3 countries, because it could not fix that rule and would throw most leads away.
+2. **Check.** Every hard constraint is checked on the qualified set and written to `cap_checks`: approved-country share >= 80%, at least 3 countries, largest country <= 60%, all leads mainly English, all in an approved segment.
+3. **Fail loudly.** A failed rule is logged as `CAP RULE FAILED`. The later stages still run so the output can be inspected, but `run.py` ends with `RUN FAILED` and exit code 2, and the set is not valid for submission.
+
 ## Output format (`leads.csv`)
 
 `leads.csv` holds **qualified creators only**. Rejected creators go to `rejected.csv` with a reason. The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook order, as `LEADS_COLUMNS` in `engine/common.py`. Allowed values:
@@ -207,10 +215,10 @@ Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer
 
 - At least 80% of leads from US, CA, GB, IE, AU, NZ, SG
 - At least 3 countries
-- No country above 60%
+- No country above 60% (a larger country is trimmed to 60% first)
 - Mainly English content
 
-All values are in `config.yaml`.
+All values are in `config.yaml`. Enforced by `engine/caps.py` (stage 5); `run.py` exits with code 2 when any of them fails.
 
 ## Failure handling
 

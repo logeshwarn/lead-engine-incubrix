@@ -2,6 +2,14 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Stage 5, caps
+
+- Added `engine/caps.py`: `deduped` -> `capped` and `cap_checks`. A country above 60% is trimmed to 60% (lowest-ranked leads rejected with "cap: ..."), then every hard rule is checked: approved share, 3+ countries, largest country, English, segment.
+- `run.py`: runs caps after dedupe; a failed rule is logged loudly and the run exits with code 2 after the remaining stages.
+- Tests: `tests/test_caps.py`, 9 tests; 188 in total.
+- Real data: 51 -> 45 leads (US 33 -> 27); all rules pass.
+- Docs: WORKFLOW (stage 5, hard constraints), DECISIONS, PHASES, README, and both records files.
+
 ## 2026-10-28: Stage 4, dedupe
 
 - Added `engine/dedupe.py`: `verified` -> `deduped`. One qualified row per creator, matched by platform ID, website domain or email (chained); the kept row has the most recent content. Duplicates stay as Rejected with the matching key and `duplicate_of`.

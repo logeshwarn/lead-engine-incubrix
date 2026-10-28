@@ -74,6 +74,7 @@ Already produced today:
   - `profiles` and `content_items` (enrich)
   - `verified` (verify): look at `candidate_status` and `rejection_reason`
   - `deduped` (dedupe): the same rows, one Qualified row per creator; `duplicate_of` names the row a duplicate was merged into
+  - `capped` and `cap_checks` (caps): the final country mix, and each hard rule with its value and pass/fail
   
   Delete it to start from scratch, which spends the quota again. Any SQLite viewer (for example "DB Browser for SQLite") can open it to inspect the rows by hand.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run
@@ -98,7 +99,8 @@ python -m ruff check .
 - **`creator check failed` or `creator check not run (LLM unavailable)`** in `rejection_reason`: Gemini did not answer (free-tier load or quota). Run again later; answers already given are cached. To try another model, change `llm.model` in `config.yaml`.
 - **Log says `YouTube daily quota used up`**: the remaining YouTube searches were skipped. Run again after the quota resets (midnight Pacific time). Finished searches are cached, so the run continues where it stopped.
 - **`input file not found`**: check the `--input` path.
-- **The first run is slow** (about 5 s per new podcast or website): feeds and websites are fetched one at a time, and a slow site can take up to 3 × 20 s before it is skipped. Reruns are served from the cache and take seconds. Failed sites are retried after 1 day.
+- **The first run is slow** (about 1.75 s per new podcast with 8 parallel fetches; 96 minutes for 3,299 shows on 2026-10-28): a slow site can take up to 3 × 20 s before it is skipped. Reruns are served from the cache (about 6 minutes for the same 3,299 shows). Failed sites are retried after 1 day.
+- **`RUN FAILED: the lead set breaks ... hard rule(s)`** and exit code 2: the final leads break a country or language rule (see `cap_checks` in `output/engine.db`). A country above 60% is trimmed automatically, so this usually means fewer than 3 countries. Add seeds for other countries or niches and run again.
 - **`partial: website (robots.txt disallows)`** in `profiles`: the site asks bots not to read it, so we don't. That's expected behaviour, not an error.
 
 ## Docs

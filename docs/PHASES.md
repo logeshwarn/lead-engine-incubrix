@@ -90,7 +90,7 @@ Done when tests pass for the activity rule, dedupe, caps and missing evidence, a
 | volume step (discover categories, parallel enrich) | done (2026-10-28) |
 | verify fixes from the volume hand check | done (2026-10-28) |
 | `engine/dedupe.py` | done (2026-10-28) |
-| `engine/caps.py` | not started |
+| `engine/caps.py` | done (2026-10-28) |
 
 Verify built (2026-10-28):
 - All checks with a quote and URL; reasons kept for every rejection; `verified` table
@@ -151,5 +151,10 @@ All 9 quotes were found word for word in the creator's own text. Hand check: 7 c
 
 **Dedupe built (2026-10-28):** on the 52 qualified rows, 0 true duplicates and 1 re-upload feed rejected (Dr. John Campbell, contact email shared by 19 shows): **51 unique creators**. Stress check with all 3,299 profiles treated as qualified: 487 rows on an email shared by 3+ shows, 107 duplicates merged; the merges checked by hand are shows of one organisation. Tests: `tests/test_dedupe.py` (11 tests: each key, chains, shared platform domains, keep order, rejected rows ignored, shared emails, rerun identical).
 
+**Caps built (2026-10-28):** on the 51 unique creators, US was 33 (65%); 6 US leads were trimmed, leaving **45 leads: US 27 (60%), GB 9, CA 4, AU 3, NZ 1, IE 1**. All 5 rules pass. The full cached run (all stages so far) took 375 s with no new API calls. Tests: `tests/test_caps.py` (9 tests: trim to 60%, trim order, untouched mix, too few countries, approved share, language and segment, rejected rows ignored, tables written).
+
+Still open in Phase 2: `rejected.csv` (the brief lists it here; WORKFLOW gives it to export) and the 20-row hand check of the final set.
+
 Open questions for later phases:
+- Phase 3: trim by score instead of recency once score exists (see DECISIONS.md).
 - Phase 3: scoring weights are not set yet.
