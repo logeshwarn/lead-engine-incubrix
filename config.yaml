@@ -105,7 +105,30 @@ priority_a:
 targets:
   min_leads: 1000
 
-# scoring weights: added in Phase 3 and explained in docs/DECISIONS.md
+score:                        # owner's choice 2026-10-28 ("Balanced"); reasons in docs/DECISIONS.md
+  need:                       # 30: by need_kind from verify; the creator's own words beat an observed gap
+    own words: 30
+    repurposing: 22           # long episodes with no clips or video: IncuBrix's core job
+    captions: 15              # episodes without transcripts
+    consistency: 12           # irregular gaps between uploads
+  volume:                     # 20: long-form items in the last 60 days
+    max: 20
+    full_at: 8                # 8 long items in 60 days (weekly) earns the full 20; fewer earn a share
+  commercial:                 # 20: by monetization_signal from verify
+    Sponsorship: 20           # already earns from content and has sponsors to report reach to
+    Service: 16
+    Course: 16
+    Product: 16
+    Membership: 12
+    Affiliate: 8
+  reach:                      # 20
+    email: 12                 # a published email
+    form_or_pitch: 4          # a contact form or podcast guest-pitch page
+    second_channel: 4         # at least 2 kinds of channel, so route has a backup
+  evidence:                   # 10: strength of the country evidence
+    strong: 10                # platform country, feed tag, a sentence or an address
+    domain_only: 6            # only the website's country domain
+  priority_b_min_score: 50    # outside the top 25 (Priority A): 50+ is B, below is C
 
 sender:                       # used by draft (Phase 4); must not claim to be IncuBrix staff (assignment section 8)
   name: Logeshwaran

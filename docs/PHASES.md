@@ -7,7 +7,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | 0 | Setup | done (2026-10-27) |
 | 1 | Discover and enrich | done (2026-10-28) |
 | 2 | Verify, dedupe, caps | done (2026-10-28) |
-| 3 | Score and route | not started |
+| 3 | Score and route | in progress (score built 2026-10-28) |
 | 4 | Outreach drafting | not started |
 | 5 | Scale, export, refresh | not started |
 | 6 | Seed test | not started |
@@ -168,6 +168,21 @@ All 9 quotes were found word for word in the creator's own text. Hand check: 7 c
 
 **Phase 2 is done:** tests pass for the activity rule, dedupe, caps and missing evidence, and the 20-row check found 3 rule bugs, now fixed.
 
+## Phase 3: Score and route
+
+Done when every lead has a best channel, a backup channel and a score, and weights are documented in DECISIONS.md.
+
+| Module | Status |
+|---|---|
+| `engine/score.py` | done (2026-10-28) |
+| `engine/route.py` | not started |
+
+**Score built (2026-10-28):** weights chosen by the owner ("Balanced"; DECISIONS.md). Caps now trims by the same score. On the 42 leads:
+- scores 61 to 88, median 77; **25 Priority A, 17 B, 0 C**. A is 19 US, 5 GB, 1 AU.
+- The spread is narrow: no lead has the need in its own words and 37 of 42 are "no transcripts" (15 points), so order comes mostly from volume, offer type and contacts.
+- Caps trimmed the 7 lowest-scoring US leads (54 to 66); the US leads kept in A score 75 to 88.
+- Known doubtful rows rank high: Oncology Today (a company the LLM called a creator) is 3rd, and Storied: San Francisco (country quote about a photographer) is in A. The score trusts verify, so the owner's Phase 7 audit should start with the A list.
+- Tests: `tests/test_score.py` (9 tests: each part, full marks, A/B/C split, stable ties, table) and a caps test that the lowest score is trimmed first.
+
 Open questions for later phases:
-- Phase 3: trim by score instead of recency once score exists (see DECISIONS.md).
-- Phase 3: scoring weights are not set yet.
+- Phase 4: drafting needs the LLM again; Priority A sequences use the A list above.

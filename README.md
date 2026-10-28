@@ -54,7 +54,7 @@ python run.py --refresh
 ## Config
 
 - `data/seeds.csv`: the niches and search terms to discover from. Each row is a niche, not a lead. A row with `primary_platform` = `podcast_category` names a Podcast Index category (e.g. `Fitness`) and brings up to 2,000 active shows. The columns are explained in [docs/WORKFLOW.md](docs/WORKFLOW.md). Set `status` to `paused` to skip a row.
-- `config.yaml`: thresholds, country and segment caps, activity rules, evidence age, the cache window (`cache`) and search sizes (`discover`). Values come from the brief, and segment and country names come from the Submission Workbook. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
+- `config.yaml`: thresholds, country and segment caps, scoring weights (`score`), activity rules, evidence age, the cache window (`cache`) and search sizes (`discover`). Values come from the brief, and segment and country names come from the Submission Workbook. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
 - `.env`: API keys only. `.env.example` lists the keys you need.
 
 ## Outputs
@@ -75,6 +75,7 @@ Already produced today:
   - `verified` (verify): look at `candidate_status` and `rejection_reason`
   - `deduped` (dedupe): the same rows, one Qualified row per creator; `duplicate_of` names the row a duplicate was merged into
   - `capped` and `cap_checks` (caps): the final country mix, and each hard rule with its value and pass/fail
+  - `scored` (score): each lead's 5 score parts, `lead_score` and `priority` (A, B or C)
   
   Delete it to start from scratch, which spends the quota again. Any SQLite viewer (for example "DB Browser for SQLite") can open it to inspect the rows by hand.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run

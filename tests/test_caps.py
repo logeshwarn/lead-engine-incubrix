@@ -100,3 +100,12 @@ def test_run_writes_tables_and_reports_failures(conn, config):
 def test_run_passes_on_a_valid_set(conn, config):
     leads({"US": 3, "GB": 2, "CA": 1}).to_sql("deduped", conn, index=False)
     assert caps.run(conn, config) == []
+
+
+def test_lowest_score_is_trimmed_first(config):
+    df = leads({"US": 4, "GB": 1, "CA": 1})  # US 4 of 6; one must go
+    df.loc[:, "need_kind"] = "captions"
+    df.loc[:, "monetization_signal"] = "Sponsorship"
+    df.loc[2, "monetization_signal"] = "Affiliate"  # 12 points less than the other US leads
+    out, _, trimmed, _ = run(config, df)
+    assert trimmed == 1 and out.loc[2, "candidate_status"] == "Rejected"

@@ -7,7 +7,8 @@ The final lead set must meet the hard constraints (brief section 6, assignment s
 - every lead in an approved segment, with mainly English content
 
 Decision 2026-10-28 (owner): when one country is above 60%, its lowest-ranked qualified leads are
-marked Rejected ("cap: ...") until it is at 60%. Then every rule is checked and written to
+marked Rejected ("cap: ...") until it is at 60%. "Lowest-ranked" means the lowest score
+(engine/score.py), so the best leads are kept. Then every rule is checked and written to
 `cap_checks`. A rule that still fails (too few countries, too few approved) cannot be fixed by
 trimming, so it is reported as failed: the later stages still run, so the output can be inspected,
 but run.py exits with an error and the run report says FAILED.
@@ -17,7 +18,8 @@ import logging
 
 import pandas as pd
 
-from engine.dedupe import DEDUPED_COLUMNS, keep_order
+from engine.dedupe import DEDUPED_COLUMNS
+from engine.score import rank_key
 
 log = logging.getLogger("caps")
 
@@ -46,8 +48,8 @@ def trim_top_country(out, config):
     keep = int(limit * others / (1 - limit) + 1e-9)
     if len(rows) <= keep:
         return 0
-    # Same ranking as dedupe: the most recent content, then the most contacts, then the ID.
-    ranked = sorted(rows.index, key=lambda i: keep_order(out.loc[i]))
+    # Lowest score goes first (the same score the score stage gives; it depends only on the lead).
+    ranked = sorted(rows.index, key=lambda i: rank_key(out.loc[i], config["score"]))
     for i in ranked[keep:]:
         out.loc[i, ["candidate_status", "rejection_reason"]] = [
             "Rejected",

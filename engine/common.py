@@ -34,6 +34,7 @@ REQUIRED_SECTIONS = [
     "activity",
     "reachable",
     "evidence",
+    "score",
     "priority_a",
     "targets",
 ]

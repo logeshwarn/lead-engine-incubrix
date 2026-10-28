@@ -2,6 +2,15 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Stage 6, score
+
+- Added `engine/score.py`: `capped` -> `scored`. Five score parts kept as columns, `lead_score` 0-100, `priority` A (top 25), B (50+), C.
+- `config.yaml`: new `score` section with the owner's weights ("Balanced"). `engine/caps.py` trims by the same score.
+- `run.py`: runs score after caps.
+- Tests: `tests/test_score.py` (9) and a caps test; 209 in total.
+- Real data: 42 leads, 25 A and 17 B, scores 61 to 88.
+- Docs: WORKFLOW (stage 6, caps ranking), DECISIONS (weights, priority, caps by score), PHASES (Phase 3), README, and both records files.
+
 ## 2026-10-28: rejected.csv and the 20-row check (Phase 2 done)
 
 - Added `engine/export.py` with `write_rejected`: `<out>/rejected.csv` with every rejected creator and its reasons; a rejection without a reason fails the run. `run.py` writes it after caps.

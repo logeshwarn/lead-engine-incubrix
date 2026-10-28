@@ -11,7 +11,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 3 | verify | `engine/verify.py` | `profiles`, `content_items` | `verified` table: every check with an evidence quote and URL; Qualified or Rejected with reasons (export writes rejects to `rejected.csv`) | **built** |
 | 4 | dedupe | `engine/dedupe.py` | `verified` | `deduped` table: every verified row; one Qualified row per creator (platform ID, website domain, email); duplicates and shared-contact rows Rejected with the reason | **built** |
 | 5 | caps | `engine/caps.py` | `deduped` | `capped` table (a country above 60% trimmed) and `cap_checks` table (each hard rule, value, limit, passed) | **built** |
-| 6 | score | `engine/score.py` | capped | score from 0 to 100; top 25 flagged Priority A | not built |
+| 6 | score | `engine/score.py` | `capped` | `scored` table: 5 score parts, `lead_score` 0-100, `priority` A/B/C | **built** |
 | 7 | route | `engine/route.py` | scored | best channel and backup channel | not built |
 | 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
 | 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | `rejected.csv` built (Phase 2); the rest in Phase 5 |
@@ -163,9 +163,25 @@ The table is rebuilt from `verified` every run, so the stage can be rerun on its
 
 Input: the `deduped` table. Output: the `capped` table (same columns) and the `cap_checks` table.
 
-1. **Trim (owner decision 2026-10-28).** If one country is above 60% of qualified leads (`countries.max_country_share`), its lowest-ranked leads are marked Rejected ("cap: US above 60% of leads (ranked 30 of 33 US leads)") until it is at 60%. The ranking is the same as dedupe's: most recent content, then most contacts, then platform ID. Trimming is skipped when the set has fewer than 3 countries, because it could not fix that rule and would throw most leads away.
+1. **Trim (owner decision 2026-10-28).** If one country is above 60% of qualified leads (`countries.max_country_share`), its lowest-ranked leads are marked Rejected ("cap: US above 60% of leads (ranked 30 of 33 US leads)") until it is at 60%. The lowest scores go first (`engine/score.py`, the same score stage 6 gives), so the best leads are kept. Trimming is skipped when the set has fewer than 3 countries, because it could not fix that rule and would throw most leads away.
 2. **Check.** Every hard constraint is checked on the qualified set and written to `cap_checks`: approved-country share >= 80%, at least 3 countries, largest country <= 60%, all leads mainly English, all in an approved segment.
 3. **Fail loudly.** A failed rule is logged as `CAP RULE FAILED`. The later stages still run so the output can be inspected, but `run.py` ends with `RUN FAILED` and exit code 2, and the set is not valid for submission.
+
+## Stage 6: score
+
+Input: `capped`. Output: `scored`, the same rows plus `score_need`, `score_volume`, `score_commercial`, `score_reach`, `score_evidence`, `lead_score` and `priority`. Only qualified rows are scored; rejected rows keep these blank. Weights are in `config.yaml` (`score`), chosen by the owner on 2026-10-28; the reasons are in DECISIONS.md.
+
+| Part | Max | Points |
+|---|---|---|
+| need | 30 | by `need_kind`: own words 30, repurposing 22, captions 15, consistency 12 |
+| volume | 20 | long-form items in 60 days: 8 or more earn 20, fewer earn a share (4 items = 10) |
+| commercial | 20 | by `monetization_signal`: Sponsorship 20; Service, Course, Product 16; Membership 12; Affiliate 8 |
+| reach | 20 | email 12; contact form or guest-pitch page 4; at least 2 kinds of channel 4 |
+| evidence | 10 | country from the platform, feed tag, a sentence or an address 10; from the website's country domain only 6 |
+
+**Priority:** the 25 highest scores are A (`priority_a.count`); of the rest, 50 or more is B (`score.priority_b_min_score`), below 50 is C. Equal scores are ordered like dedupe (most recent content, most contacts, lowest ID), so reruns give the same A list.
+
+A score depends only on the lead's own evidence, so caps uses the same function (`rank_key`) to decide which leads to trim: the lowest scores go first.
 
 ## Stage 9: export (rejected.csv so far)
 

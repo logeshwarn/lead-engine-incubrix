@@ -10,12 +10,12 @@ import sys
 import time
 from pathlib import Path
 
-from engine import caps, dedupe, discover, enrich, export, verify
+from engine import caps, dedupe, discover, enrich, export, score, verify
 from engine.common import connect_db, load_config, setup_logging
 
 # Pipeline order from docs/WORKFLOW.md. Each name becomes engine/<name>.py as it is built.
 STAGES = ["discover", "enrich", "verify", "dedupe", "caps", "score", "route", "draft", "export"]
-BUILT = ["discover", "enrich", "verify", "dedupe", "caps"]
+BUILT = ["discover", "enrich", "verify", "dedupe", "caps", "score"]
 
 
 def parse_args(argv=None):
@@ -51,6 +51,7 @@ def main(argv=None):
     # A broken cap rule does not stop the run: the later stages still run so the output can be
     # inspected, but the run ends with an error (owner decision 2026-10-28).
     cap_failures = caps.run(conn, config)
+    score.run(conn, config)
     export.write_rejected(conn, args.out)  # the rest of export (leads.csv, report) comes in Phase 5
     # Say plainly which stages are still missing rather than pretend the run is complete.
     log.warning("stages not built yet: %s", ", ".join(s for s in STAGES if s not in BUILT))
