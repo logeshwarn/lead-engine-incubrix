@@ -8,7 +8,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 |---|---|---|---|---|---|
 | 1 | discover | `engine/discover.py` | `data/seeds.csv` | `candidates` table (platform ID, URL, source, query) | **built** |
 | 2 | enrich | `engine/enrich.py` | `candidates` | `profiles` and `content_items` tables: profile, recent uploads, links, public contact info (cached) | **built** |
-| 3 | verify | `engine/verify.py` | enriched candidates | 7 checks with an evidence quote and URL each; failures go to `rejected.csv` | not built |
+| 3 | verify | `engine/verify.py` | `profiles`, `content_items` | `verified` table: every check with an evidence quote and URL; Qualified or Rejected with reasons (export writes rejects to `rejected.csv`) | **built** |
 | 4 | dedupe | `engine/dedupe.py` | verified | one row per creator (platform ID, domain, email) | not built |
 | 5 | caps | `engine/caps.py` | deduped | country and segment rules enforced | not built |
 | 6 | score | `engine/score.py` | capped | score from 0 to 100; top 25 flagged Priority A | not built |
@@ -100,6 +100,33 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
   - Missing pages (4xx) are cached too.
   - Feeds, websites and robots.txt that failed (timeouts, SSL errors, 5xx) are **remembered for 1 day** (`cache.failure_max_age_days`), so a same-day rerun skips them instantly instead of waiting through the timeouts again.
   - Measured on 2026-10-28 with 343 candidates: the rerun made 0 live calls and took 3.3 s.
+
+## Stage 3: verify
+
+- **Input:** `profiles` and `content_items`.
+- **Output:** the `verified` table, one row per profile. Column names follow the workbook where they match (`country_iso2`, `content_count_30d`, `monetization_signal`, `incubrix_need`, `checked_date`, `candidate_status`, `rejection_reason` and others).
+- **Rule:** a check passes only with evidence: a verbatim quote (or a count over public items) plus the URL where it can be seen. Every failed check adds a reason, and all reasons are kept, separated by `; `. Rows that enrich skipped or failed are rejected with that reason.
+- **Whose words count:** facts about the creator (country, contact details, social profiles) come only from **the creator's own texts**: the channel or show description and their own website. Episode and video notes often describe guests and sponsors, so they never count for these. Offers (a sponsor read) and needs can come from episodes, because those belong to the show.
+
+| Check | How it passes | Evidence columns |
+|---|---|---|
+| 1 Real and relevant | approved segment; stable ID and profile URL; not an organisation (see below); country evidenced and approved; at least 60% of recent items detected as English (`verify.english_min_share`) | `country_iso2`, `country_evidence`, `country_evidence_url`, `english_share` |
+| 2 Active | 8+ items in 30 days, or 2+ items of 20+ minutes in 60 days | `content_count_30d`, `longform_count_60d`, `last_content_date`, `recent_content_url` |
+| 3 Commercial | offer wording in show notes, description or site (sponsor read, promo code, affiliate disclosure, "work with me", "our course", "join the membership", "support the show", "become a sponsor" and others), or a link to an offer platform (Patreon, Kajabi, Calendly and others). Topics such as "Protein Masterclass" in a title do not count | `monetization_signal`, `monetization_evidence`, `monetization_evidence_url` |
+| 4 Needs IncuBrix | the creator's own words first ("hiring an editor", "sorry for the delay", "on hiatus"); otherwise an observed gap: no creator-uploaded captions or transcripts on every one of 3+ recent items (only when the status of every item is known); long videos and no Shorts; long episodes and no YouTube or TikTok link (only when we read their website); or a 21+ day gap between uploads | `incubrix_need`, `need_kind`, `need_evidence`, `need_evidence_url` |
+| 5 Reachable | creator active in the last 60 days **and** at least one checkable business channel: an email (on their own domain, labelled for business, on their contact page, or the show's RSS contact; never a hosting-platform or no-reply address, never one seen only in show notes), their contact page, or a guest-pitch page. Social profiles are recorded but cannot pass alone, because their activity cannot be checked without reading the platform | `contacts` (JSON, each with `evidence_url` and a note) |
+| 6 Personalisable | a recent item with a title and link to cite. The episode link is used, or the show page when the episode has none. The message itself is checked in draft | `recent_content_title`, `recent_content_url` |
+| 7 Fresh evidence | profile checked within 30 days. Uniqueness is checked by dedupe | `checked_date` |
+
+**Country evidence**, strongest first:
+1. country stated on the YouTube channel
+2. the creator's `<podcast:location>` feed tag
+3. a postal address (US "City, ST 12345", UK, Canadian or Australian postcode), but only on a contact or about page or in the description, because a homepage can list an event venue
+4. a phone prefix (+44, +353, +61, +64, +65; +1 is skipped because it's shared by US and CA)
+5. a sentence placing the creator: "based in", "located in", "X-based", or "we are from" (with a subject, so "lessons from London" does not count). When several places appear, the right-most wins: "Birmingham, Alabama" is US
+6. last, the website's country domain (`.uk`, `.ca`, `.ie`, `.au`, `.nz`, `.sg`), labelled as such in the evidence
+
+**Organisations excluded:** names that are an organisation's own title ("… Podcast Network", "News", "Clips", "Magazine", "Radio Station" and others), or descriptions where the account speaks as one ("we are a digital agency"). Topic words do not exclude: "Smart Agency Masterclass" (a coach for agency owners) and "Network Marketing" pass. A host who runs an agency is still an expert-led creator. **Known gap:** company, agency and publication podcasts that don't describe themselves this way still pass. See PHASES.md.
 
 ## Output format (`leads.csv`)
 

@@ -6,9 +6,10 @@ The full brief is in [docs/BRIEF.pdf](docs/BRIEF.pdf).
 
 The assignment it answers is in [docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf](docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf).
 
-**Status:** Phase 1 (discover and enrich) is built.
+**Status:** Phase 1 (discover and enrich) is done, and Phase 2 is in progress: verify is built.
 - **Discover** searches YouTube, Podcast Index and iTunes for every active seed.
 - **Enrich** adds each candidate's profile, recent uploads or episodes, and published contact details from YouTube, the show's RSS feed and the creator's own website (robots.txt respected).
+- **Verify** runs the qualification checks. Each pass carries a quote and its URL, and each rejection lists its reasons (table `verified`).
 
 The later stages are not built yet, and the run log lists them. See [docs/PHASES.md](docs/PHASES.md).
 
@@ -71,6 +72,7 @@ Already produced today:
   - the API cache and the API call log
   - `candidates` (discover)
   - `profiles` and `content_items` (enrich)
+  - `verified` (verify): look at `candidate_status` and `rejection_reason`
   
   Delete it to start from scratch, which spends the quota again. Any SQLite viewer (for example "DB Browser for SQLite") can open it to inspect the rows by hand.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run

@@ -22,7 +22,7 @@ def channel(
     return {
         "id": cid,
         "snippet": {
-            "title": cid,
+            "title": f"Chan Show {cid}",
             "description": desc,
             "customUrl": f"@{cid}",
             "country": country,
@@ -255,3 +255,21 @@ def test_entry_date_is_utc_and_survives_bad_dates():
     bad = {"published_parsed": time.struct_time((99999, 1, 1, 0, 0, 0, 0, 1, 0))}
     assert enrich.entry_date(bad) is None
     assert enrich.entry_date({}) is None
+
+
+def test_own_website_needs_name_match():
+    row = {"name": "James Sinclair's Podcast", "handle": "@jamessinclairspodcast", "profile_url": "P"}
+    links = [
+        {"url": "https://www.revolut.com/business", "source_url": "P"},  # sponsor, listed first
+        {"url": "https://jamessinclair.net/course", "source_url": "P"},
+    ]
+    assert enrich.own_website(links, row, ["youtube.com"]) == "https://jamessinclair.net/course"
+
+
+def test_own_website_blank_rather_than_guessed():
+    row = {"name": "Chan Show", "handle": "@chanshow", "profile_url": "P"}
+    links = [
+        {"url": "https://www.revolut.com/business", "source_url": "P"},
+        {"url": "https://chanshow.com", "source_url": "https://www.youtube.com/watch?v=1"},  # video, not channel
+    ]
+    assert enrich.own_website(links, row, []) is None

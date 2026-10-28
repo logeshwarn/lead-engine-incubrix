@@ -17,8 +17,8 @@ Update this file when a library, API or data store changes. "Used by" lists only
 | RSS parsing | feedparser | 6.0.14 | `engine/enrich.py`: podcast feeds (episodes, durations, owner email, transcript tag) |
 | Website reading | beautifulsoup4 (`html.parser`, built in) | 4.15.0 | `engine/enrich.py`: page text, links, `mailto:`; also strips HTML from show notes. Public pages only |
 | robots.txt | `urllib.robotparser` | stdlib | `engine/enrich.py`: every website page is checked before fetching |
-| Language detection | langdetect | 1.0.9 | verify *(planned)*: English content check |
-| Domain normalisation | tldextract | 5.4.0 | dedupe *(planned)*: dedupe key |
+| Language detection | langdetect | 1.0.9 | `engine/verify.py`: share of recent items detected as English (fixed seed, so reruns match) |
+| Domain normalisation | tldextract | 5.4.0 | `engine/verify.py`: email domain vs website domain, country domains; dedupe *(planned)*. Uses the bundled suffix list (`suffix_list_urls=()`), so no network call |
 | Email seed test | `smtplib`, `imaplib` | stdlib | seed test *(planned)*: test accounts only |
 
 ## APIs
@@ -51,4 +51,5 @@ All data is inside the `--out` folder (default `output/`, ignored by git).
 | SQLite table `candidates` | `<out>/engine.db` | discover output, one row per creator per platform |
 | SQLite table `profiles` | `<out>/engine.db` | enrich output, one row per candidate: profile facts, emails, links and pages (JSON), enrich_status |
 | SQLite table `content_items` | `<out>/engine.db` | enrich output: uploads and episodes from the last 60 days |
+| SQLite table `verified` | `<out>/engine.db` | verify output: one row per profile with each check, its evidence quote and URL, contacts (JSON), Qualified or Rejected and the reasons |
 | Log files | `<out>/logs/run_YYYYMMDD_HHMMSS.log` | one file per run |

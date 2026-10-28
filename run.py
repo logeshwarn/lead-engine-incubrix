@@ -10,12 +10,12 @@ import sys
 import time
 from pathlib import Path
 
-from engine import discover, enrich
+from engine import discover, enrich, verify
 from engine.common import connect_db, load_config, setup_logging
 
 # Pipeline order from docs/WORKFLOW.md. Each name becomes engine/<name>.py as it is built.
 STAGES = ["discover", "enrich", "verify", "dedupe", "caps", "score", "route", "draft", "export"]
-BUILT = ["discover", "enrich"]
+BUILT = ["discover", "enrich", "verify"]
 
 
 def parse_args(argv=None):
@@ -46,6 +46,7 @@ def main(argv=None):
     started = time.monotonic()
     discover.run(conn, config, args.input)
     enrich.run(conn, config)
+    verify.run(conn, config)
     # Say plainly which stages are still missing rather than pretend the run is complete.
     log.warning("stages not built yet: %s", ", ".join(s for s in STAGES if s not in BUILT))
     log.info("run finished in %.1f s", time.monotonic() - started)

@@ -2,6 +2,18 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Stage 3, verify
+
+- Added `engine/verify.py`: the qualification checks, each with a verbatim quote and URL, writing the `verified` table (Qualified or Rejected, all reasons kept). It covers country (6 evidence sources), language (langdetect), organisations, activity, offers, needs (own words, then observed gaps), contacts (published business channels only) and evidence age.
+- `config.yaml`: added `verify` thresholds; `run.py` now runs verify after enrich.
+- `engine/enrich.py`:
+  - show description combines `<itunes:summary>` and `<description>`
+  - reads `<podcast:location>` (new `location` column); feed cache is now `rss.v3`
+  - the YouTube website must match the creator's name
+- Fixes from the 20-row hand check: no country or contacts from show notes; the right-most place wins; street addresses only on contact/about pages; profile-shaped social links only; more hosting-platform email domains blocked; guest-pitch testimonials ignored; topic words no longer exclude creators.
+- Tests: `tests/test_verify.py` and new enrich tests. 137 tests in total.
+- Docs: WORKFLOW (stage 3, evidence rules), TECH_RUNTIME, DECISIONS, PHASES (hand check, yield), README, and both records files.
+
 ## 2026-10-28: Stage 2, enrich (Phase 1 done)
 
 - Added `engine/enrich.py`: YouTube channel, upload and video details (size/country gate before the per-channel calls); podcast RSS (episodes, durations, owner email, transcript tag); the creator's own website (homepage, contact and about pages, robots.txt checked, big platforms never fetched). Writes the `profiles` and `content_items` tables.

@@ -61,6 +61,14 @@ activity:
 reachable:
   channel_active_days: 60     # contact channel must show activity in the last 60 days
 
+verify:
+  english_min_share: 0.6      # "mainly English": at least 60% of recent items detected as English
+  short_max_seconds: 180      # YouTube Shorts are at most 3 minutes
+  caption_gap_min_items: 3    # "no captions" needs at least this many recent items to be a fair claim
+  repurpose_min_long_items: 2 # "long-form but no Shorts/clips" needs at least this many long items
+  consistency_gap_days: 21    # a gap this long between recent uploads is a consistency signal
+  quote_chars: 160            # evidence quotes are cut to this length around the match
+
 evidence:
   max_age_days: 30            # evidence must be checked within 30 days; --refresh re-checks older
 

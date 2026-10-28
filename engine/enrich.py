@@ -31,8 +31,10 @@ YT_CHANNELS_URL = "https://www.googleapis.com/youtube/v3/channels"
 YT_PLAYLIST_URL = "https://www.googleapis.com/youtube/v3/playlistItems"
 YT_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 # Cache name for parsed feeds. Bump the version when parse_feed output changes, so results parsed
-# by older code are not reused (v2: episode dates read as UTC, not local time).
-FEED_CACHE = "rss.v2"
+# by older code are not reused (v2: episode dates read as UTC, not local time;
+# v3: show description from both summary and description tags, plus podcast:location).
+FEED_CACHE = "rss.v3"
+PODCAST_LOCATION = re.compile(r"<podcast:location[^>]*>\s*([^<]{2,120})</podcast:location>", re.I)
 
 PROFILE_COLUMNS = [
     "platform",
@@ -42,6 +44,7 @@ PROFILE_COLUMNS = [
     "handle",
     "description",
     "country",  # only as the platform states it; blank when not stated
+    "location",  # the creator's own stated location (podcast:location tag); blank when not stated
     "language",
     "subscribers",  # YouTube only; blank when hidden or for podcasts
     "total_items",
@@ -282,11 +285,30 @@ def enrich_youtube(conn, config, candidates, api_key):
                 quota_hit = True
         row.update(emails=emails, links=links)
         row["enrich_status"] = "partial: " + ", ".join(status) if status else "ok"
-        row["website"] = next(
-            (u["url"] for u in links if not is_skipped_domain(u["url"], config["enrich"]["skip_domains"])), None
-        )
+        row["website"] = own_website(links, row, config["enrich"]["skip_domains"])
         profiles.append(row)
     return profiles, items
+
+
+def name_tokens(*names):
+    """Lower-case words of 4+ letters from the channel title and handle, e.g. 'James Sinclair' -> james, sinclair."""
+    return {w for n in names if n for w in re.findall(r"[a-z0-9]{4,}", n.lower())}
+
+
+def own_website(links, row, skip_domains):
+    """The creator's own site: a channel-description link whose domain contains their name or handle.
+
+    The first link in a description is often a sponsor's (e.g. a bank), so without a name match we
+    leave the website blank rather than guess.
+    """
+    tokens = name_tokens(row["name"], row["handle"])
+    for link in links:
+        if link["source_url"] != row["profile_url"] or is_skipped_domain(link["url"], skip_domains):
+            continue
+        domain = host(link["url"]).replace("-", "")
+        if any(t in domain for t in tokens):
+            return link["url"]
+    return None
 
 
 # ---------- podcasts (RSS) ----------
@@ -327,13 +349,21 @@ def parse_feed(r, max_episodes, text_chars):
             }
         )
     episodes.sort(key=lambda ep: ep["published_at"] or "", reverse=True)
+    # feedparser puts <itunes:summary> in "summary" and the plain <description> in "subtitle";
+    # feeds often have only one of them, and they can differ, so keep both.
+    parts = [f.feed.get("summary"), f.feed.get("subtitle")]
+    parts = [BeautifulSoup(p, "html.parser").get_text(" ", strip=True) for p in parts if p]
+    description = " | ".join(dict.fromkeys(parts))  # drop the copy when both are the same text
+    # <podcast:location> is the creator's own stated location; feedparser keeps only its attributes.
+    location = PODCAST_LOCATION.search(r.text or "")
     return {
         "title": f.feed.get("title"),
         "link": f.feed.get("link"),
         "language": f.feed.get("language"),
         "author": f.feed.get("author"),
         "owner_email": owner.get("email"),
-        "description": BeautifulSoup(f.feed.get("summary", ""), "html.parser").get_text(" ", strip=True)[:text_chars],
+        "description": description[:text_chars],
+        "location": location.group(1).strip() if location else None,
         "episode_count": len(f.entries),
         "episodes": episodes[:max_episodes],
     }
@@ -379,6 +409,7 @@ def enrich_podcasts(conn, config, candidates):
             last_content_at=max(dates) if dates else None,
             website=feed.get("link") or row["website"],
             handle=feed.get("author"),
+            location=feed.get("location"),
         )
         for ep in feed["episodes"]:
             if not ep["published_at"] or parse_iso(ep["published_at"]) < cutoff:

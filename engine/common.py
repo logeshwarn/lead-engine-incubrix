@@ -22,6 +22,7 @@ REQUIRED_SECTIONS = [
     "cache",
     "discover",
     "enrich",
+    "verify",
     "segments",
     "countries",
     "language",

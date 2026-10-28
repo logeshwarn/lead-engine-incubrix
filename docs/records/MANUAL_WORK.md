@@ -16,14 +16,17 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-27 | Owner | Added the assignment `docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf` | Used as a rules source alongside the brief | not recorded |
 | 2026-10-27 | Owner | Committed and pushed Phase 0 (`1a50bc1 phase 0`) | In sync with `origin/main`; `.env` not tracked | not recorded |
 | 2026-10-27 | Owner | Delegated four open decisions to Claude Code ("choose the best") | Need evidence = observed gap or own words; long-form = 20 min; `leads.csv` qualified-only; assignment PDF as rules source (DECISIONS.md) | not recorded |
-
 | 2026-10-27 | Owner | Created a Google Gemini API key (AI Studio) and put it in `.env` as `LLM_API_KEY` | `check_apis.py` at 23:25 IST: Gemini PASS (HTTP 200, 0 tokens) | not recorded |
 | 2026-10-27 | Owner | Gave the sender identity for outreach: "Logeshwaran, final year IT student at TCE" | Saved in `config.yaml` (`sender`) | not recorded |
 | 2026-10-27 | Owner | Committed and pushed discover and the Gemini setup (`295980b phase 01`, `1cb765b gemini LLM`) | In sync with `origin/main` | not recorded |
 | 2026-10-28 | Owner | Checked progress of the slow Phase 1 run and chose to let it finish rather than cap the sample | The full 343-candidate run completed; it showed the need for parallel fetching in Phase 5 | not recorded |
+| 2026-10-28 | Owner | Started a full run on all 42 seeds in their own terminal (01:08), then stopped it during enrich | Discover finished: 6,268 candidates, 82 new YouTube searches (8,200 units). About 230 YouTube channels enriched and cached before the stop | not recorded |
+| 2026-10-28 | Owner | Committed and pushed enrich (`dede66f`) | In sync with `origin/main` | not recorded |
 
 ## Pending (not done yet)
 
 These are not entries. Each one moves to the log once it is done.
 
 - Review the corrected `data/seeds.csv` and confirm it
+- Decide how verify separates creators from organisations (LLM step or stricter rules)
+- Note: the 20-row check in PHASES.md was done by Claude Code on the engine's output. The 40-lead audit in Phase 7 is the owner's own manual work

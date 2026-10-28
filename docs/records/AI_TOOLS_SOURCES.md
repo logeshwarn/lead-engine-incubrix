@@ -13,6 +13,7 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-27 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | analysed the qualification rules and wrote the plan; chose the four delegated decisions; built `engine/discover.py`, `cached_get` and their tests; ran the small live discover and the iTunes store comparison |
 
 | 2026-10-27 to 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/enrich.py`, the cache extensions and their tests; ran the live Phase 1 check and the hand inspection; found and fixed the timezone, bad-date, NaN and repeat-failure bugs |
+| 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/verify.py` and its tests; ran verify on the 343-candidate sample; did the 20-row check of the engine's output and fixed the evidence rules it exposed; fixed the enrich feed-description and website bugs |
 
 ## Sources
 
@@ -30,3 +31,4 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-27 to 2026-10-28 | Phase 1 live run on 5 seed keywords (S001, S002, S004, S011, S015). YouTube API: 1 more `search.list` (100 units), 2 `channels.list`, 25 `playlistItems.list`, 20 `videos.list` (47 units). Podcast Index: 2 more searches. iTunes: 2 more searches | 343 candidates discovered and enriched. YouTube quota used by all live runs to date: 247 units |
 | 2026-10-27 to 2026-10-28 | Public podcast RSS feeds (243 shows; 474 live fetches, because the feeds were read again after the timezone fix) | episodes, durations, owner emails, transcript tags |
 | 2026-10-27 to 2026-10-28 | Public creator websites: 249 robots.txt and 409 page fetches (homepage, contact, about), robots.txt respected | contact emails, links and page text, each kept with its source URL |
+| 2026-10-28 | Public podcast RSS feeds (243 shows, read again for the `rss.v3` fix) and a few creator websites (new YouTube website choices) | show descriptions, `podcast:location` tags; no new API quota used |
