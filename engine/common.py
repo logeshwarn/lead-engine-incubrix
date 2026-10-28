@@ -26,6 +26,7 @@ REQUIRED_SECTIONS = [
     "discover",
     "enrich",
     "verify",
+    "dedupe",
     "llm",
     "segments",
     "countries",

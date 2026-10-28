@@ -19,7 +19,7 @@ Update this file when a library, API or data store changes. "Used by" lists only
 | Website reading | beautifulsoup4 (`html.parser`, built in) | 4.15.0 | `engine/enrich.py`: page text, links, `mailto:`; also strips HTML from show notes. Public pages only |
 | robots.txt | `urllib.robotparser` | stdlib | `engine/enrich.py`: every website page is checked before fetching |
 | Language detection | langdetect | 1.0.9 | `engine/verify.py`: share of recent items detected as English (fixed seed, so reruns match) |
-| Domain normalisation | tldextract | 5.4.0 | `engine/verify.py`: email domain vs website domain, country domains; dedupe *(planned)*. Uses the bundled suffix list (`suffix_list_urls=()`), so no network call |
+| Domain normalisation | tldextract | 5.4.0 | `engine/verify.py`: email domain vs website domain, country domains; `engine/dedupe.py`: website domain as a dedupe key. Uses the bundled suffix list (`suffix_list_urls=()`), so no network call |
 | Email seed test | `smtplib`, `imaplib` | stdlib | seed test *(planned)*: test accounts only |
 
 ## APIs

@@ -89,7 +89,7 @@ Done when tests pass for the activity rule, dedupe, caps and missing evidence, a
 | `engine/verify.py` | done (2026-10-28) |
 | volume step (discover categories, parallel enrich) | done (2026-10-28) |
 | verify fixes from the volume hand check | done (2026-10-28) |
-| `engine/dedupe.py` | not started |
+| `engine/dedupe.py` | done (2026-10-28) |
 | `engine/caps.py` | not started |
 
 Verify built (2026-10-28):
@@ -148,6 +148,8 @@ All 9 quotes were found word for word in the creator's own text. Hand check: 7 c
 **Size limit lowered to 250,000 (owner, 2026-10-28):** verify rerun from cache, no new API calls: **52 qualified** (US 33, GB 10, CA 4, AU 3, NZ 1, IE 1). Newly rejected for size: The Human Upgrade (328,000) and TestGuild (451,000). Eight Christian radio shows also link the same Moody Church Media channel (286,000), and TAKEN TV links one with 271,000; all 9 are now rejected for size before the LLM is asked; none of them had qualified.
 
 **What this means for 1,000 leads:** After the verify fixes 1.6% of category candidates qualify, so about 62,000 candidates are needed, roughly 19 category seeds at about 1,650 candidates each. At 1.75 s per show that is about 22 hours of enrich (cached after the first time), and about 1,600 Gemini calls (about 2 hours with the pause; the free daily limit must be checked). Fixing the 12 doubtful patterns will lower the rate a little. Country evidence is still the biggest filter.
+
+**Dedupe built (2026-10-28):** on the 52 qualified rows, 0 true duplicates and 1 re-upload feed rejected (Dr. John Campbell, contact email shared by 19 shows): **51 unique creators**. Stress check with all 3,299 profiles treated as qualified: 487 rows on an email shared by 3+ shows, 107 duplicates merged; the merges checked by hand are shows of one organisation. Tests: `tests/test_dedupe.py` (11 tests: each key, chains, shared platform domains, keep order, rejected rows ignored, shared emails, rerun identical).
 
 Open questions for later phases:
 - Phase 3: scoring weights are not set yet.

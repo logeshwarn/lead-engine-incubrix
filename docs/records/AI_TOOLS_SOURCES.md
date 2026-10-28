@@ -19,6 +19,7 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built the volume step (category discovery, inactive drop, parallel fetching) and its tests; measured the search limits; ran the 2-category live run and hand-checked all 71 qualified rows |
 | 2026-10-28 | Google Gemini API (runtime, inside the engine) | `gemini-3.5-flash-lite`, free tier | the engine | creator vs organisation on the 2-category run: 164 uncached calls plus 2 from cache, 252,461 tokens, $0 |
 | 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built the verify fixes (broadcaster domains, country-quote check, podcast size) and their tests; reran verify 4 times; hand-checked the 71 and then the 54 qualified rows |
+| 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/dedupe.py` and its tests; ran it on the stored data and a stress check over all 3,299 profiles; found the re-upload feeds and the missing platform domains; no API calls |
 | 2026-10-28 | Google Gemini API (runtime, inside the engine) | `gemini-3.5-flash-lite`, free tier | the engine | 4 verify reruns for the fixes: 290 uncached calls (2 more failed on a dropped connection), 200 from cache, $0. Tokens: 98,781, 238,406 and 6,530 on three of the reruns; the fourth was logged with cached answers included (236,183), a log bug fixed in the same module, so its own figure is not known exactly |
 
 ## Sources

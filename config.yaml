@@ -83,6 +83,18 @@ verify:
     theathletic.com, theringer.com, cumulusmedia.com, salemmedia.com, earwolf.com,
   ]
 
+dedupe:
+  # Website domains many creators share, so they never mark two rows as one creator.
+  # Added to enrich.skip_domains, verify.media_domains and the hosting domains in engine/verify.py.
+  shared_domains: [substack.com, blogspot.com, podcast.show, riverside.com, beehiiv.com, kajabi.com,
+                   mykajabi.com, teachable.com, thinkific.com, gumroad.com, wixsite.com, weebly.com,
+                   poddyhost.com, prx.org, zencastr.com, inlet.fm, podigee.io, jellypod.com, podpage.com,
+                   ausha.co, libsynpro.com, bit.ly, yahoo.com]
+  # An email listed as the contact of this many different shows (across all verified rows) belongs to a
+  # network or a re-upload feed, not the creator: the row is rejected. Two shows sharing an email are
+  # treated as one creator and merged instead (measured 2026-10-28: 2,168 emails on 1 show, 110 on 2).
+  shared_email_min_shows: 3
+
 evidence:
   max_age_days: 30            # evidence must be checked within 30 days; --refresh re-checks older
 

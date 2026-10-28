@@ -9,7 +9,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 1 | discover | `engine/discover.py` | `data/seeds.csv` | `candidates` table (platform ID, URL, source, query) | **built** |
 | 2 | enrich | `engine/enrich.py` | `candidates` | `profiles` and `content_items` tables: profile, recent uploads, links, public contact info (cached) | **built** |
 | 3 | verify | `engine/verify.py` | `profiles`, `content_items` | `verified` table: every check with an evidence quote and URL; Qualified or Rejected with reasons (export writes rejects to `rejected.csv`) | **built** |
-| 4 | dedupe | `engine/dedupe.py` | verified | one row per creator (platform ID, domain, email) | not built |
+| 4 | dedupe | `engine/dedupe.py` | `verified` | `deduped` table: every verified row; one Qualified row per creator (platform ID, website domain, email); duplicates and shared-contact rows Rejected with the reason | **built** |
 | 5 | caps | `engine/caps.py` | deduped | country and segment rules enforced | not built |
 | 6 | score | `engine/score.py` | capped | score from 0 to 100; top 25 flagged Priority A | not built |
 | 7 | route | `engine/route.py` | scored | best channel and backup channel | not built |
@@ -143,6 +143,21 @@ A sentence or address (4-5 above, and street addresses) can describe someone oth
    - evidence columns: `creator_kind`, `creator_evidence`, `creator_evidence_url`
 
 **Podcast size** (`check_podcast_size`): podcast directories publish no audience count, so the size of a podcast comes from the creator's own YouTube channel, when their description or website links to one (`/@handle`, `/channel/UC…`, `/user/…`, `/c/…`; watch and playlist links are ignored). One `channels.list` call (1 unit, cached) on rows that pass every other check, before the LLM. Above `verify.podcast_max_youtube_subscribers` (250,000) is a rejection; the count and link are kept in `followers_or_subscribers` and `size_evidence`. No link, a hidden count or a failed call is not a reason.
+
+## Stage 4: dedupe
+
+Input: the `verified` table. Output: the `deduped` table, the same rows plus `duplicate_of`. Nothing is dropped: a row that loses is marked Rejected with the reason, so export can write it to `rejected.csv`.
+
+1. **Shared contact email.** Over every verified row (qualified or not), count how many different shows list each email. A qualified row whose email is on 3 or more shows (`dedupe.shared_email_min_shows`) is rejected: "not the creator's own contact: X is listed on N different shows". Such an address belongs to a network or to a feed that re-uploads other people's YouTube channels. Measured on 3,299 shows: 2,168 emails are on 1 show and 110 on 2; one gmail address ran 19 feeds named after Dr. John Campbell, MIT OpenCourseWare, Jim Gaffigan and others, another 56.
+2. **Same creator.** Qualified rows are one creator when they share any key:
+   - the platform ID
+   - the website's registered domain (`www.JaneDoe.com/podcast` and `janedoe.com` match)
+   - an email address (lower-cased)
+
+   Keys chain: if A and B share a domain, and B and C an email, all three are one creator. Domains many creators share never count: `enrich.skip_domains`, `verify.media_domains`, the hosting domains in `engine/verify.py`, and `dedupe.shared_domains` (Substack, Linktree-style pages, page builders, Podpage, Zencastr and others).
+3. **Which row is kept:** the most recent content, then the most contacts, then the lowest platform ID, so reruns keep the same row. The others get "duplicate of <name> (<id>): same <key> <value>" and `duplicate_of`.
+
+The table is rebuilt from `verified` every run, so the stage can be rerun on its own.
 
 ## Output format (`leads.csv`)
 

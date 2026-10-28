@@ -73,6 +73,7 @@ Already produced today:
   - `candidates` (discover)
   - `profiles` and `content_items` (enrich)
   - `verified` (verify): look at `candidate_status` and `rejection_reason`
+  - `deduped` (dedupe): the same rows, one Qualified row per creator; `duplicate_of` names the row a duplicate was merged into
   
   Delete it to start from scratch, which spends the quota again. Any SQLite viewer (for example "DB Browser for SQLite") can open it to inspect the rows by hand.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run

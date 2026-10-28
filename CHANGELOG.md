@@ -2,6 +2,15 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Stage 4, dedupe
+
+- Added `engine/dedupe.py`: `verified` -> `deduped`. One qualified row per creator, matched by platform ID, website domain or email (chained); the kept row has the most recent content. Duplicates stay as Rejected with the matching key and `duplicate_of`.
+- Rows whose contact email is listed on 3+ shows are rejected (networks and YouTube re-upload feeds).
+- `config.yaml`: new `dedupe` section (`shared_domains`, `shared_email_min_shows`). `run.py` runs dedupe after verify.
+- Tests: `tests/test_dedupe.py`, 11 tests; 179 in total.
+- Real data: 52 qualified -> 51 unique creators (1 re-upload feed).
+- Docs: WORKFLOW (stage 4), TECH_RUNTIME, DECISIONS, PHASES, README, and both records files.
+
 ## 2026-10-28: Podcast size limit 250,000
 
 - `config.yaml`: `verify.podcast_max_youtube_subscribers` lowered from 500,000 to 250,000 (owner's choice). Verify rerun: 52 qualified (was 54).

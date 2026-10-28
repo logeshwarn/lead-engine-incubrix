@@ -28,6 +28,7 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-28 | Owner | Chose to fix the doubtful rows in verify before dedupe; asked to retry when the Gemini connection dropped mid-run | Verify fixes built; 54 qualified after the rerun | not recorded |
 | 2026-10-28 | Owner | Committed the creator check, volume step and verify fixes (`c7bb6b5`) | In sync with git | not recorded |
 | 2026-10-28 | Owner | Set the podcast size limit to 250,000 linked-YouTube subscribers, after reviewing the measured sizes | `config.yaml`, DECISIONS.md | not recorded |
+| 2026-10-28 | Owner | Committed the size limit (`c17a748`) and asked to continue with dedupe | dedupe built | not recorded |
 
 ## Pending (not done yet)
 
