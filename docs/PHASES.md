@@ -86,7 +86,9 @@ Done when tests pass for the activity rule, dedupe, caps and missing evidence, a
 
 | Module | Status |
 |---|---|
-| `engine/verify.py` | built and tested (2026-10-28); organisation check needs a decision (below) |
+| `engine/verify.py` | done (2026-10-28) |
+| volume step (discover categories, parallel enrich) | done (2026-10-28) |
+| verify fixes from the volume hand check | done (2026-10-28) |
 | `engine/dedupe.py` | not started |
 | `engine/caps.py` | not started |
 
@@ -112,6 +114,38 @@ Verify built (2026-10-28):
 - The 7 rejected rows checked by hand were all rejected for the right reasons.
 
 **Yield on the sample:** 343 candidates → 266 usable → 119 active → 9 qualified (about 3% of usable, fewer once organisations are removed). The biggest filters are country evidence (most creators never state a location publicly) and activity (55% of shows posted nothing in 60 days). The full seed set (6,268 candidates) would give roughly 150-200 leads at this rate, so reaching 1,000 needs more volume. Options are listed for the owner in the module report.
+
+**Creator check added (2026-10-28, owner chose the LLM option):** Gemini `gemini-3.5-flash-lite`, free tier, quote-checked. On the 9 rows that passed everything else:
+- 2 answered creator: Duct Tape Marketing (John Jantsch), Fit Womens Weekly (Kindal Boyle)
+- 7 answered organisation: Wealth Within, Authority Hacker, Exposure Ninja, Patient Care Marketing Pros, B2B Marketing, Trinity, Fitness Education Online
+
+All 9 quotes were found word for word in the creator's own text. Hand check: 7 clearly right; Authority Hacker (founder-led brand) and Trinity (coaching company) are borderline and were judged strictly, which is the safe side for the audit. Cost: 13,818 tokens, $0.
+
+**Yield after the creator check: 2 qualified of 343 candidates (0.6%).** At this rate the full 42-seed set (6,268 candidates) gives about 40 leads. The business and marketing podcast niches are dominated by company and agency shows. Reaching 1,000 needs much more volume and better-targeted seeds. That is the main project risk now.
+
+**Volume step (2026-10-28, owner chose volume before dedupe):** Podcast Index category lists, dropping inactive shows in discover, and parallel feed/website fetching (8 workers). Measured run on 2 category seeds, S043 Fitness and S046 Self-Improvement:
+- discover: 4 Podcast Index calls, 3,999 hits, **3,299 unique candidates**, 0 inactive (every show in these lists has a recent episode). 5 seconds.
+- enrich: 3,299 feeds (2 failed), 4,224 website pages and 1,989 robots.txt files fetched. **96 minutes**, about 1.75 s per show with 8 workers (about 5 s per show before).
+- verify: 166 Gemini answers, 252,461 tokens, $0. 20 minutes, most of it the 4 s pause between free-tier calls.
+- Total run: 6,950 s (1 h 56 min). 10 fetch errors (SSL, timeouts, HTTP 5xx), all logged and the rows skipped.
+- **71 qualified of 3,299 (2.2%, up from 0.6%).** Fitness 45, Self-Improvement 26. Countries: US 49, GB 12, AU 4, CA 4, NZ 1, IE 1. Needs: captions 61, repurposing 9, consistency 1.
+- Top rejections: country not evidenced 2,628 (80%), no public commercial evidence 259, "News" in name 54, not active 52, no need evidence 29. The LLM answered organisation for 94 rows and unclear for 1.
+
+**Hand check of all 71 qualified rows (Claude Code, on the engine's output):** about 59 look right. About 12 are doubtful:
+- **Country quote about someone else** (5): the location phrase came from a team or company paragraph on the about page, not the host. Send Me To Sleep (the studio's headquarters), Finding Freedom (a co-founder), The Nourished Chat (a staff coach), Let's Talk Mental Health (a guest or partner), Storied: San Francisco (a contributing photographer). The country is probably still right in most cases, but the quote does not prove it.
+- **Broadcasters or ministries that passed the creator check** (4): James O'Brien (Global radio), The Steve Sommers Overnight Drive (radio station), Point Taken (WTMJ Radio), Conversations with John & Lisa Bevere (Messenger International).
+- **Probably above the size band** (3): Next Question with Katie Couric, The Human Upgrade (Dave Asprey), In the Booth with Babish. Podcasts have no public follower count, so the size band is never applied to them.
+- Off-niche but real creators: the Self-Improvement lists include Sims, film, cricket and game-music shows. They pass because the brief does not require a niche match beyond "relevant creator".
+
+**Verify fixes for the doubtful rows (2026-10-28, owner chose to fix verify before dedupe):** broadcaster/network domains, the LLM judging whom a country sentence or address is about, and podcast size from the linked YouTube channel. Verify rerun on the same 3,299 profiles (no new discovery or enrich):
+- **54 qualified (1.6%)**, down from 71. Fitness 35, Self-Improvement 19. US 35, GB 10, CA 4, AU 3, NZ 1, IE 1.
+- New rejections: 154 rows on a broadcaster or network domain (most were already rejected for other reasons; 42 Locked On shows), 9 above the size limit (Katie Couric 723,000, Brian Scott 921,000, Chris Van Vliet 866,000 and others), 10 country quotes about someone else or unclear.
+- **All 12 doubtful rows from the hand check are now rejected except one:** Storied: San Francisco, where the LLM judged a quote about a contributing photographer to be about the host. The host does say "I moved to San Francisco", but the cited quote is the wrong one. Known miss.
+- Also caught: "Moscow is a city located in northern Idaho" (a topic, not a location) on a true-crime show.
+- Hand check of the final 54: the country, size and creator evidence of each row was read. Besides Storied, borderline: Oncology Today (Dr Neil Love; the address is his medical education company), The Human Upgrade (Dave Asprey, 328,000 YouTube subscribers, under the limit). Dr. John Campbell is very large on YouTube but only links to single videos, so his size is unknown and he passes.
+- A first version of the country prompt counted the host's own business address as "someone else" and dropped 13 good rows (Pain Free Birth LLC, Fit Womens Weekly, The Mold Doctor and others). Fixed by naming the host's own business, practice or show as the host. Logged in DECISIONS.md.
+
+**What this means for 1,000 leads:** After the verify fixes 1.6% of category candidates qualify, so about 62,000 candidates are needed, roughly 19 category seeds at about 1,650 candidates each. At 1.75 s per show that is about 22 hours of enrich (cached after the first time), and about 1,600 Gemini calls (about 2 hours with the pause; the free daily limit must be checked). Fixing the 12 doubtful patterns will lower the rate a little. Country evidence is still the biggest filter.
 
 Open questions for later phases:
 - Phase 3: scoring weights are not set yet.

@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pandas as pd
 import pytest
+from conftest import FakeResponse, gemini_reply
 
 from engine import verify
 from engine.common import now_utc
@@ -299,7 +300,32 @@ def test_guest_pitch_page_is_a_channel(cfg):
 # ---------- stage ----------
 
 
-def test_run_writes_table_with_reasons(conn, cfg):
+CREATOR = {
+    "kind": "creator",
+    "reason": "host Jane",
+    "quote": "Weekly interviews. Based in Austin",
+    "source": "DESCRIPTION",
+    "country_quote_about": "host",
+}
+
+
+@pytest.fixture(autouse=True)
+def llm_key(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+
+
+def load(conn, rows):
+    pd.DataFrame(rows).to_sql("profiles", conn, index=False)
+    items = [{**it, "platform": "podcast", "platform_id": r["platform_id"]} for r in rows for it in good_items()]
+    pd.DataFrame(items).drop(columns=["published"]).to_sql("content_items", conn, index=False)
+
+
+def verified(conn):
+    return pd.read_sql("SELECT * FROM verified", conn).set_index("platform_id")
+
+
+def test_run_writes_table_with_reasons(conn, cfg, fake_http):
+    fake_http(lambda url, params: gemini_reply(CREATOR))
     rows = [profile(), profile(platform_id="itunes:2", name="Acme Podcast Network")]
     pd.DataFrame(rows).to_sql("profiles", conn, index=False)
     items = [
@@ -401,3 +427,191 @@ def test_testimonial_is_not_a_guest_pitch(cfg):
     pages = [{"url": f"{SITE}/podcast", "title": "", "text": "It was a delight to be a guest on the show."}]
     contacts = verify.find_contacts(profile(emails="[]", pages=json.dumps(pages)), good_items(), cfg)
     assert contacts == []
+
+
+# ---------- creator or organisation (LLM) ----------
+
+
+def test_llm_creator_answer_passes_with_checked_quote(conn, cfg, fake_http):
+    fake = fake_http(lambda url, params: gemini_reply(CREATOR))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    v = verified(conn).loc["itunes:1"]
+    assert v.candidate_status == "Qualified" and v.creator_kind == "creator"
+    assert v.creator_evidence_url == profile()["profile_url"]  # the description the quote came from
+    call = fake.calls[0]
+    assert "gemini-" in call["url"] and "test-key" not in call["url"]  # key in the header, not the URL
+    assert call["headers"]["x-goog-api-key"] == "test-key"
+
+
+def test_llm_organisation_answer_rejects(conn, cfg, fake_http):
+    org = {"kind": "organisation", "reason": "an agency's show", "quote": "Get in touch", "source": "WEBSITE"}
+    fake_http(lambda url, params: gemini_reply(org))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    v = verified(conn).loc["itunes:1"]
+    assert v.candidate_status == "Rejected" and v.rejection_reason == "not a creator (LLM): an agency's show"
+    assert v.creator_evidence_url == f"{SITE}/contact"
+
+
+def test_invented_quote_is_rejected(conn, cfg, fake_http):
+    made_up = {**CREATOR, "quote": "Jane is a famous solo creator from Austin"}
+    fake_http(lambda url, params: gemini_reply(made_up))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    v = verified(conn).loc["itunes:1"]
+    assert v.candidate_status == "Rejected" and v.creator_kind == "unverified"
+    assert "model quote not found" in v.rejection_reason
+
+
+def test_unclear_is_rejected(conn, cfg, fake_http):
+    fake_http(lambda url, params: gemini_reply({**CREATOR, "kind": "unclear"}))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    assert verified(conn).loc["itunes:1", "rejection_reason"] == "creator status unclear (LLM)"
+
+
+def test_llm_only_asked_about_otherwise_qualified_rows(conn, cfg, fake_http):
+    fake = fake_http(lambda url, params: gemini_reply(CREATOR))
+    load(conn, [profile(), profile(platform_id="itunes:2", description="Weekly interviews.", website=None)])
+    verify.run(conn, cfg)
+    assert len(fake.calls) == 1  # itunes:2 already fails on country, so it costs no LLM call
+
+
+def test_llm_rerun_is_cached(conn, cfg, fake_http):
+    fake = fake_http(lambda url, params: gemini_reply(CREATOR))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    verify.run(conn, cfg)
+    assert len(fake.calls) == 1
+
+
+def test_llm_down_stops_after_two_failures(conn, cfg, fake_http):
+    fake = fake_http(lambda url, params: FakeResponse(503))
+    load(conn, [profile(platform_id=f"itunes:{i}") for i in range(4)])
+    verify.run(conn, cfg)
+    reasons = verified(conn).rejection_reason.tolist()
+    assert reasons[:2] == ["creator check failed (gave up after 3 attempts (HTTP 503))"] * 2
+    assert reasons[2:] == ["creator check not run (LLM unavailable)"] * 2
+    assert len(fake.calls) == 6  # 2 rows x 3 attempts, then no more calls
+
+
+def test_missing_llm_key_rejects_without_calling(conn, cfg, fake_http, monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "")
+    fake = fake_http(lambda url, params: gemini_reply(CREATOR))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    assert verified(conn).loc["itunes:1", "rejection_reason"] == "creator check failed (LLM_API_KEY is empty)"
+    assert fake.calls == []
+
+
+# ---------- hand check of the 2-category run (2026-10-28) ----------
+
+
+@pytest.mark.parametrize(
+    "overrides,reason",
+    [
+        ({"website": "https://www.lbc.co.uk/radio/presenters/jane/"}, "website on lbc.co.uk"),
+        ({"emails": json.dumps([{"value": "janeshow@global.com", "source_url": "x"}])}, "contact email on global.com"),
+        ({"website": "http://podcasts.voxmedia.com"}, "website on voxmedia.com"),
+    ],
+)
+def test_broadcaster_or_network_show_is_not_a_creator(cfg, overrides, reason):
+    ok, why = verify.check_not_organisation(profile(**overrides), cfg["verify"]["media_domains"])
+    assert not ok and reason in why
+
+
+def test_hosting_platform_website_is_not_an_organisation(cfg):
+    ok, _ = verify.check_not_organisation(profile(website="https://janedoe.libsyn.com"), cfg["verify"]["media_domains"])
+    assert ok
+
+
+@pytest.mark.parametrize(
+    "url,params",
+    [
+        ("https://www.youtube.com/@JaneDoe?sub_confirmation=1", {"forHandle": "@JaneDoe"}),
+        ("https://youtube.com/channel/UCvGAY-5kSoCxahkDoeCJRfA", {"id": "UCvGAY-5kSoCxahkDoeCJRfA"}),
+        ("https://www.youtube.com/user/djockers", {"forUsername": "djockers"}),
+        ("https://www.youtube.com/c/KatieCouric", {"forHandle": "@KatieCouric"}),
+        ("https://www.youtube.com/ChrisVanVliet", {"forHandle": "@ChrisVanVliet"}),
+        ("https://www.youtube.com/watch?v=BZrJraN2nOQ", None),
+        ("https://www.youtube.com/playlist?list=PLKv1KCSKwOo", None),
+    ],
+)
+def test_linked_youtube_channel(url, params):
+    p = profile(links=json.dumps([{"url": url, "source_url": SITE}]))
+    assert verify.linked_youtube_channel(p)[0] == params
+
+
+def channel_reply(subs):
+    return FakeResponse(200, {"items": [{"snippet": {"title": "Jane Doe"}, "statistics": {"subscriberCount": subs}}]})
+
+
+@pytest.mark.parametrize("subs,status", [("2400000", "Rejected"), ("12000", "Qualified")])
+def test_podcast_size_from_linked_youtube_channel(conn, cfg, fake_http, monkeypatch, subs, status):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "yt")
+    fake = fake_http(
+        lambda url, params: channel_reply(subs) if "googleapis.com/youtube" in url else gemini_reply(CREATOR)
+    )
+    load(conn, [profile(links=json.dumps([{"url": "https://www.youtube.com/@JaneDoe", "source_url": SITE}]))])
+    verify.run(conn, cfg)
+    v = verified(conn).loc["itunes:1"]
+    assert v.candidate_status == status and v.followers_or_subscribers == int(subs)
+    assert "youtube.com/@JaneDoe" in v.size_evidence
+    if status == "Rejected":
+        assert v.rejection_reason.startswith("size: linked YouTube channel Jane Doe has 2400000 subscribers")
+        assert len(fake.calls) == 1  # too big: no LLM call
+
+
+def test_no_linked_channel_means_no_size_call(conn, cfg, fake_http, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "yt")
+    fake = fake_http(lambda url, params: gemini_reply(CREATOR))
+    load(conn, [profile()])
+    verify.run(conn, cfg)
+    assert verified(conn).loc["itunes:1", "candidate_status"] == "Qualified"
+    assert not any("youtube" in c["url"] for c in fake.calls)
+
+
+ABOUT = f"{SITE}/about"
+STAFF_PAGE = json.dumps([{"url": ABOUT, "title": "", "text": "Coach Kendal lives in Texas and helps our clients."},
+                         {"url": f"{SITE}/contact", "title": "", "text": "Get in touch"}])  # fmt: skip
+
+
+@pytest.mark.parametrize("about,status", [("someone else", "Rejected"), ("host", "Qualified")])
+def test_website_country_quote_must_be_about_the_host(conn, cfg, fake_http, about, status):
+    fake = fake_http(
+        lambda url, params: gemini_reply({**CREATOR, "quote": "Weekly interviews.", "country_quote_about": about})
+    )
+    load(conn, [profile(description="Weekly interviews.", pages=STAFF_PAGE)])
+    verify.run(conn, cfg)
+    v = verified(conn).loc["itunes:1"]
+    assert v.country_evidence_url == ABOUT and v.candidate_status == status
+    assert "COUNTRY QUOTE: " in json.dumps(fake.calls[0]["json"])  # the quote was put to the model
+    if status == "Rejected":
+        assert v.rejection_reason == "country not evidenced: the quote is about someone else, not the host (LLM)"
+
+
+def test_description_country_sentence_is_put_to_the_llm(conn, cfg, fake_http):
+    fake = fake_http(lambda url, params: gemini_reply(CREATOR))
+    load(conn, [profile()])  # "Based in Austin, Texas." is a sentence in the show's description
+    verify.run(conn, cfg)
+    assert "COUNTRY QUOTE: " in json.dumps(fake.calls[0]["json"])
+    assert verified(conn).loc["itunes:1", "candidate_status"] == "Qualified"
+
+
+def test_country_domain_is_not_put_to_the_llm(conn, cfg, fake_http):
+    fake = fake_http(lambda url, params: gemini_reply({**CREATOR, "quote": "Weekly interviews."}))
+    load(conn, [profile(description="Weekly interviews.", website="https://janedoe.co.uk")])
+    verify.run(conn, cfg)
+    assert "COUNTRY QUOTE: " not in json.dumps(fake.calls[0]["json"])
+    assert verified(conn).loc["itunes:1", "country_iso2"] == "GB"
+
+
+def test_unclear_country_quote_is_rejected(conn, cfg, fake_http):
+    fake_http(
+        lambda url, params: gemini_reply({**CREATOR, "quote": "Weekly interviews.", "country_quote_about": "unclear"})
+    )
+    load(conn, [profile(description="Weekly interviews.", pages=STAFF_PAGE)])
+    verify.run(conn, cfg)
+    reason = verified(conn).loc["itunes:1", "rejection_reason"]
+    assert reason == "country not evidenced: the quote is not shown to be about the host (LLM: unclear)"

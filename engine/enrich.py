@@ -23,7 +23,7 @@ import feedparser
 import pandas as pd
 from bs4 import BeautifulSoup
 
-from engine.common import USER_AGENT, ApiError, cached_get, now_utc
+from engine.common import USER_AGENT, ApiError, cached_get, now_utc, parallel_map
 
 log = logging.getLogger("enrich")
 
@@ -370,69 +370,78 @@ def parse_feed(r, max_episodes, text_chars):
 
 
 def enrich_podcasts(conn, config, candidates):
-    profiles, items = [], []
+    """Read every show's feed, several at once (enrich.workers). Returns (profiles, items) in input order."""
+    results = parallel_map(
+        conn,
+        config["enrich"]["workers"],
+        lambda c, cand: enrich_podcast(c, config, cand),
+        candidates.to_dict("records"),
+    )
+    profiles = [row for row, _ in results]
+    items = [it for _, show_items in results for it in show_items]
+    return profiles, items
+
+
+def enrich_podcast(conn, config, cand):
+    """One show: its profile row and recent episodes, from its own RSS feed."""
     cfg = config["enrich"]
     cutoff = now_utc() - timedelta(days=cfg["recent_days"])
-    for cand in candidates.to_dict("records"):
-        row = base_profile(cand)
-        if not cand.get("feed_url"):
-            row["enrich_status"] = "failed: no feed URL"
-            profiles.append(row)
-            continue
-        try:
-            feed, _ = cached_get(
-                conn,
-                FEED_CACHE,
-                cand["feed_url"],
-                {},
-                config["http"],
-                config["cache"]["enrich_max_age_days"],
-                failure_max_age_days=config["cache"]["failure_max_age_days"],
-                headers_fn=lambda: {"User-Agent": USER_AGENT},
-                parse=lambda r: parse_feed(r, cfg["rss_episodes"], cfg["item_text_chars"]),
-            )
-        except ApiError as e:
-            row["enrich_status"] = f"failed: feed ({e.reason or e.status})"
-            log.error("rss %s: %s", cand["platform_id"], e)
-            profiles.append(row)
-            continue
-        feed_url = cand["feed_url"]
-        emails = [{"value": feed["owner_email"].lower(), "source_url": feed_url}] if feed.get("owner_email") else []
-        emails += find_emails(feed.get("description"), feed_url)
-        links = find_links(feed.get("description"), feed_url)
-        dates = [ep["published_at"] for ep in feed["episodes"] if ep["published_at"]]
-        row.update(
-            name=feed.get("title") or row["name"],
-            description=feed.get("description"),
-            language=feed.get("language") or row["language"],
-            total_items=feed.get("episode_count"),
-            last_content_at=max(dates) if dates else None,
-            website=feed.get("link") or row["website"],
-            handle=feed.get("author"),
-            location=feed.get("location"),
+    row, items = base_profile(cand), []
+    if not cand.get("feed_url"):
+        row["enrich_status"] = "failed: no feed URL"
+        return row, items
+    try:
+        feed, _ = cached_get(
+            conn,
+            FEED_CACHE,
+            cand["feed_url"],
+            {},
+            config["http"],
+            config["cache"]["enrich_max_age_days"],
+            failure_max_age_days=config["cache"]["failure_max_age_days"],
+            headers_fn=lambda: {"User-Agent": USER_AGENT},
+            parse=lambda r: parse_feed(r, cfg["rss_episodes"], cfg["item_text_chars"]),
         )
-        for ep in feed["episodes"]:
-            if not ep["published_at"] or parse_iso(ep["published_at"]) < cutoff:
-                continue
-            items.append(
-                {
-                    "platform": "podcast",
-                    "platform_id": cand["platform_id"],
-                    "item_id": ep["id"],
-                    "title": ep["title"],
-                    "url": ep["url"],
-                    "published_at": ep["published_at"],
-                    "duration_seconds": ep["duration_seconds"],
-                    "has_captions": ep["has_transcript"],
-                    "description": ep["description"],
-                }
-            )
-            source = ep["url"] or feed_url
-            emails += find_emails(ep["description"], source)
-            links += find_links(ep["description"], source)
-        row.update(emails=emails, links=links, enrich_status="ok")
-        profiles.append(row)
-    return profiles, items
+    except ApiError as e:
+        row["enrich_status"] = f"failed: feed ({e.reason or e.status})"
+        log.error("rss %s: %s", cand["platform_id"], e)
+        return row, items
+    feed_url = cand["feed_url"]
+    emails = [{"value": feed["owner_email"].lower(), "source_url": feed_url}] if feed.get("owner_email") else []
+    emails += find_emails(feed.get("description"), feed_url)
+    links = find_links(feed.get("description"), feed_url)
+    dates = [ep["published_at"] for ep in feed["episodes"] if ep["published_at"]]
+    row.update(
+        name=feed.get("title") or row["name"],
+        description=feed.get("description"),
+        language=feed.get("language") or row["language"],
+        total_items=feed.get("episode_count"),
+        last_content_at=max(dates) if dates else None,
+        website=feed.get("link") or row["website"],
+        handle=feed.get("author"),
+        location=feed.get("location"),
+    )
+    for ep in feed["episodes"]:
+        if not ep["published_at"] or parse_iso(ep["published_at"]) < cutoff:
+            continue
+        items.append(
+            {
+                "platform": "podcast",
+                "platform_id": cand["platform_id"],
+                "item_id": ep["id"],
+                "title": ep["title"],
+                "url": ep["url"],
+                "published_at": ep["published_at"],
+                "duration_seconds": ep["duration_seconds"],
+                "has_captions": ep["has_transcript"],
+                "description": ep["description"],
+            }
+        )
+        source = ep["url"] or feed_url
+        emails += find_emails(ep["description"], source)
+        links += find_links(ep["description"], source)
+    row.update(emails=emails, links=links, enrich_status="ok")
+    return row, items
 
 
 # ---------- creator website ----------
@@ -573,13 +582,15 @@ def run(conn, config):
     pod_profiles, pod_items = enrich_podcasts(conn, config, pods)
 
     profiles = yt_profiles + pod_profiles
+    # Websites are read several at once; each call only changes its own row.
+    to_read = [row for row in profiles if not row["enrich_status"].startswith(("failed", "skipped"))]
+    problems = parallel_map(conn, config["enrich"]["workers"], lambda c, row: enrich_website(c, config, row), to_read)
+    for row, problem in zip(to_read, problems, strict=True):
+        if problem:
+            row["enrich_status"] = (
+                "partial: " if row["enrich_status"] == "ok" else row["enrich_status"] + ", "
+            ) + problem
     for row in profiles:
-        if not row["enrich_status"].startswith(("failed", "skipped")):
-            problem = enrich_website(conn, config, row)
-            if problem:
-                row["enrich_status"] = (
-                    "partial: " if row["enrich_status"] == "ok" else row["enrich_status"] + ", "
-                ) + problem
         row["emails"] = clean_emails(row["emails"])
         row["links"] = unique_by(row["links"], "url", config["enrich"]["max_links"])
         for col in ["emails", "links", "pages"]:

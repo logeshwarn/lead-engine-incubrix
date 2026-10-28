@@ -100,3 +100,17 @@ def test_api_failures_are_not_remembered(conn, config, fake_http):
         with pytest.raises(ApiError):
             get(conn, config)
     assert len(fake.calls) == 6
+
+
+def test_parallel_map_keeps_order_and_uses_own_connections(conn):
+    from engine.common import parallel_map
+
+    seen = []
+
+    def work(c, n):
+        seen.append(c)
+        c.execute("SELECT 1")  # each thread's own connection works
+        return n * 2
+
+    assert parallel_map(conn, 4, work, list(range(20))) == [n * 2 for n in range(20)]
+    assert conn not in seen  # the main connection is never shared with a thread

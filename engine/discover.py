@@ -2,12 +2,17 @@
 
 Reads data/seeds.csv (active rows) and writes the `candidates` table: one row per
 creator per platform with its platform ID, URL, source and the query that found it.
-Nothing here judges quality; verify does that. Every API call goes through the cache.
+Every API call goes through the cache.
+
+Quality is judged in verify. The one exception: podcasts whose newest episode is older than
+the activity window are dropped here, because they can never pass "active" and fetching their
+feeds is most of enrich's time (2026-10-28: 57-61% of search results were inactive).
 """
 
 import logging
 import os
 import time
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
@@ -18,6 +23,11 @@ log = logging.getLogger("discover")
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 PODCASTINDEX_SEARCH_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
 ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
+# Category lists of active shows, up to 1000 per call (keyword search stops at 60 results).
+PODCASTINDEX_CATEGORY_URLS = {
+    "trending": "https://api.podcastindex.org/api/1.0/podcasts/trending",
+    "recent": "https://api.podcastindex.org/api/1.0/recent/feeds",
+}
 
 CANDIDATE_COLUMNS = [
     "platform",  # youtube | podcast
@@ -36,6 +46,7 @@ CANDIDATE_COLUMNS = [
     "niche",
     "size_min",  # the seed's subscriber band, carried so enrich can skip out-of-band channels
     "size_max",
+    "newest_item_at",  # newest episode date as the directory reports it (podcasts); blank when unknown
     "discovered_at",
 ]
 
@@ -74,11 +85,17 @@ def youtube_rows(data):
     return rows
 
 
+def from_unix(seconds):
+    return datetime.fromtimestamp(seconds, timezone.utc).isoformat() if seconds else None
+
+
 def podcastindex_rows(data):
     rows = []
     for feed in data.get("feeds", []):
         if not feed.get("id"):
             continue
+        # Search results call it newestItemPubdate; the category lists call it newestItemPublishTime.
+        newest = feed.get("newestItemPubdate") or feed.get("newestItemPublishTime")
         rows.append(
             {
                 "platform": "podcast",
@@ -89,6 +106,7 @@ def podcastindex_rows(data):
                 "website": feed.get("link"),
                 "feed_url": feed.get("url"),
                 "language": feed.get("language"),
+                "newest_item_at": from_unix(newest),
                 "source": "podcastindex",
             }
         )
@@ -108,6 +126,7 @@ def itunes_rows(data, store_country):
                 "url": show.get("collectionViewUrl"),
                 "feed_url": show.get("feedUrl"),
                 "itunes_store_country": store_country,
+                "newest_item_at": show.get("releaseDate"),  # Apple's date of the latest episode
                 "source": "itunes",
             }
         )
@@ -141,6 +160,29 @@ def search_podcastindex(conn, config, keyword, api_key, api_secret):
         headers_fn=lambda: podcastindex_headers(api_key, api_secret),
     )
     return podcastindex_rows(data)
+
+
+def search_podcast_category(conn, config, category, list_name, api_key, api_secret):
+    """One Podcast Index category list ("trending" or "recent"): active English shows."""
+    params = {"cat": category, "lang": "en", "max": config["discover"]["category_max_results"]}
+    data, _ = cached_get(
+        conn,
+        f"podcastindex.{list_name}",
+        PODCASTINDEX_CATEGORY_URLS[list_name],
+        params,
+        config["http"],
+        config["cache"]["search_max_age_days"],
+        headers_fn=lambda: podcastindex_headers(api_key, api_secret),
+    )
+    return podcastindex_rows(data)
+
+
+def drop_inactive(candidates, days):
+    """Remove podcasts whose newest episode is known and older than `days`. Unknown dates stay."""
+    newest = pd.to_datetime(candidates["newest_item_at"], utc=True, errors="coerce", format="ISO8601")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    inactive = (candidates["platform"] == "podcast") & newest.notna() & (newest < cutoff)
+    return candidates[~inactive], int(inactive.sum())
 
 
 def search_itunes(conn, config, keyword, country):
@@ -197,6 +239,14 @@ def run(conn, config, seeds_path):
                     except ApiError as e:
                         failures += 1
                         log.error("seed %s %r %s: %s", seed["seed_id"], keyword, name, e)
+            elif seed["primary_platform"] == "podcast_category" and podcastindex_on:
+                # The keyword is a Podcast Index category name; both lists add different shows.
+                for list_name in config["discover"]["category_lists"]:
+                    try:
+                        found += search_podcast_category(conn, config, keyword, list_name, pi_key, pi_secret)
+                    except ApiError as e:
+                        failures += 1
+                        log.error("seed %s category %r %s: %s", seed["seed_id"], keyword, list_name, e)
             for row in found:
                 row.update(
                     query=keyword,
@@ -213,14 +263,16 @@ def run(conn, config, seeds_path):
     found_total = len(candidates)
     # Same creator from several keywords or sources: keep the first hit (seed order is the owner's priority).
     candidates = candidates.drop_duplicates(["platform", "platform_id"], keep="first")
+    candidates, inactive = drop_inactive(candidates, config["activity"]["long_form_days"])
     # Rebuilt from the cache every run, so replacing the table is safe and keeps the stage rerunnable.
     candidates.to_sql("candidates", conn, if_exists="replace", index=False)
     log.info(
-        "%d seeds, %d hits, %d unique candidates (%s), %d failed searches",
+        "%d seeds, %d hits, %d unique candidates (%s), %d inactive podcasts dropped, %d failed searches",
         len(seeds),
         found_total,
         len(candidates),
         candidates["platform"].value_counts().to_dict(),
+        inactive,
         failures,
     )
     return candidates

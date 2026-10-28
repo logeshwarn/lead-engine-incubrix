@@ -2,6 +2,39 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Verify fixes from the volume hand check
+
+- `engine/verify.py`:
+  - shows whose website or contact email is on a broadcaster or network domain are organisations (`verify.media_domains`)
+  - the LLM prompt names broadcasters, stations, networks, churches and ministries as organisations
+  - a country quote that is a sentence or address is put to the LLM, which must answer that it is about the host (or the host's own business). New column `country_quote_about`
+  - podcast size from the creator's linked YouTube channel (`check_podcast_size`, 1 unit per row, before the LLM); above 500,000 is rejected. New column `size_evidence`
+  - the log's token count now leaves out cached answers
+- `config.yaml`: `verify.podcast_max_youtube_subscribers` (500,000, pending owner review), `verify.media_domains`.
+- Tests: 19 new (domains, YouTube link forms, size, country-quote answers). 168 tests in total.
+- Verify rerun on the 3,299 profiles: 54 qualified (was 71); 11 of the 12 doubtful rows now rejected.
+- Docs: WORKFLOW, TECH_RUNTIME, DECISIONS, PHASES, and both records files.
+
+## 2026-10-28: Volume step
+
+- `engine/discover.py`: `podcast_category` seeds read Podcast Index category lists (trending and recently updated, up to 1,000 English shows each). New column `newest_item_at`; podcasts whose newest episode is older than 60 days are dropped before enrich (`drop_inactive`).
+- `engine/common.py`: `parallel_map` (thread pool, one SQLite connection per thread); the database now runs in WAL mode with a 60 s lock timeout.
+- `engine/enrich.py`: feeds and websites are fetched 8 at a time (`enrich.workers`); results keep input order.
+- `config.yaml`: `discover.category_max_results`, `discover.category_lists`, `enrich.workers`, `podcast_category` platform.
+- `data/seeds.csv`: 16 category seeds added (S043-S058), pending owner review. The owner's 42 seeds are unchanged.
+- Tests: category, inactive-drop and `parallel_map` tests; 149 tests in total.
+- Live run on 2 categories: 3,299 candidates, 71 qualified (2.2%), 1 h 56 min, 252,461 Gemini tokens ($0). Hand check found about 12 doubtful rows; listed in PHASES.md.
+- Docs: WORKFLOW, TECH_RUNTIME, DECISIONS, PHASES, README, and both records files.
+
+## 2026-10-28: Verify done: LLM creator check
+
+- `engine/verify.py`: creator-vs-organisation check with Gemini (`check_creator`, `apply_creator_check`), run only on rows that pass everything else. The model's quote must be found word for word in the creator's own text; organisation, unclear, unverified and failed answers are rejections with reasons. New columns: `creator_kind`, `creator_evidence`, `creator_evidence_url`.
+- `engine/common.py`: `gemini_json` (cached by prompt, JSON schema, key in header, pause after uncached calls); `cached_get` can POST a JSON body and take its own timeout.
+- `config.yaml`: `llm.model: gemini-3.5-flash-lite` plus timeout, pause, cache days and input size. The model choice and test results are in DECISIONS.md.
+- Tests: the fake HTTP now covers POST, and every test blocks real GET and POST. 8 new creator-check tests; 145 tests in total.
+- Live sample: 9 LLM answers (13,818 tokens, $0); 2 of 343 candidates qualify.
+- Docs: WORKFLOW, TECH_RUNTIME, DECISIONS (model trade-off), PHASES (results, yield risk), README, and both records files.
+
 ## 2026-10-28: Stage 3, verify
 
 - Added `engine/verify.py`: the qualification checks, each with a verbatim quote and URL, writing the `verified` table (Qualified or Rejected, all reasons kept). It covers country (6 evidence sources), language (langdetect), organisations, activity, offers, needs (own words, then observed gaps), contacts (published business channels only) and evidence age.

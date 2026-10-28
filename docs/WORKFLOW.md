@@ -33,7 +33,7 @@ Each row is a niche to search, not a lead. `tests/test_seeds.py` checks the file
 | `seed_id` | unique ID, for example `S001` |
 | `segment` | one of the three workbook segment labels in `config.yaml` |
 | `niche` | short label, used for segment and country mix reporting |
-| `primary_platform` | `youtube` or `podcast` (the only discovery sources) |
+| `primary_platform` | `youtube`, `podcast` (keyword search), or `podcast_category` (the keyword is a Podcast Index category name, e.g. `Fitness`; returns active English shows from the category's trending and recently updated lists) |
 | `discovery_keywords` | search terms separated by `;`. Each YouTube term costs one `search.list` call (100 units). No term may repeat |
 | `need_signal_to_check` | hint for verify about which need to look for. Never used as evidence |
 | `size_min`, `size_max` | subscriber range for YouTube seeds. Blank for podcasts (no public audience count) |
@@ -61,6 +61,8 @@ The current file has 42 seeds. One uncached pass makes:
   | `source`, `query`, `seed_id`, `segment`, `niche` | where the row came from, for tracing evidence |
   | `discovered_at` | date (UTC) |
 
+- **Category seeds** (`podcast_category`): two Podcast Index calls per category, "trending" and "recently updated" (`discover.category_lists`), up to 1,000 English shows each. Every show returned has a recent episode. Keyword search stops at 60 results, so categories are the main volume source.
+- **Inactive shows dropped here:** a podcast whose newest episode (as Podcast Index or Apple reports it, column `newest_item_at`) is older than 60 days is removed before enrich, because it can never pass "active". Shows with no reported date are kept and judged by verify. The count dropped is in the log.
 - **Duplicates:** when the same creator is found by several keywords or sources, the first hit is kept, in seed-file order.
 - **Rerunnable:** the table is rebuilt from the cache each run. A rerun inside the cache window (`cache.search_max_age_days`, 7 days) makes no API calls. Results older than that are fetched again, so a weekly rerun picks up new creators.
 - **Not judged here:** discover keeps everything it finds, including agencies and brands. Verify removes them.
@@ -95,6 +97,7 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
     - `partial: <what failed>`, for example the website was blocked by robots.txt
     - `skipped: <reason>`, for example size or country
     - `failed: <reason>`, for example no feed URL, feed error, or quota used up
+- **Parallel fetching:** feeds and websites are fetched 8 at a time (`enrich.workers`), each thread with its own database connection (SQLite in WAL mode). Results are put back in input order, so a rerun gives the same tables. YouTube stays one call at a time, because it is quota-bound, not slow.
 - **Failure handling:** a failed call marks the row and is logged; the run continues. If the YouTube quota runs out, the remaining YouTube rows are marked `failed: quota used up`, and the next run resumes from the cache.
 - **Rerunnable:** everything goes through the cache for 7 days (`cache.enrich_max_age_days`). Both tables are rebuilt each run.
   - Missing pages (4xx) are cached too.
@@ -110,7 +113,7 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
 
 | Check | How it passes | Evidence columns |
 |---|---|---|
-| 1 Real and relevant | approved segment; stable ID and profile URL; not an organisation (see below); country evidenced and approved; at least 60% of recent items detected as English (`verify.english_min_share`) | `country_iso2`, `country_evidence`, `country_evidence_url`, `english_share` |
+| 1 Real and relevant | approved segment; stable ID and profile URL; not an organisation (rules, then the LLM creator check below); country evidenced and approved; at least 60% of recent items detected as English (`verify.english_min_share`) | `country_iso2`, `country_evidence`, `country_evidence_url`, `english_share` |
 | 2 Active | 8+ items in 30 days, or 2+ items of 20+ minutes in 60 days | `content_count_30d`, `longform_count_60d`, `last_content_date`, `recent_content_url` |
 | 3 Commercial | offer wording in show notes, description or site (sponsor read, promo code, affiliate disclosure, "work with me", "our course", "join the membership", "support the show", "become a sponsor" and others), or a link to an offer platform (Patreon, Kajabi, Calendly and others). Topics such as "Protein Masterclass" in a title do not count | `monetization_signal`, `monetization_evidence`, `monetization_evidence_url` |
 | 4 Needs IncuBrix | the creator's own words first ("hiring an editor", "sorry for the delay", "on hiatus"); otherwise an observed gap: no creator-uploaded captions or transcripts on every one of 3+ recent items (only when the status of every item is known); long videos and no Shorts; long episodes and no YouTube or TikTok link (only when we read their website); or a 21+ day gap between uploads | `incubrix_need`, `need_kind`, `need_evidence`, `need_evidence_url` |
@@ -126,7 +129,20 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
 5. a sentence placing the creator: "based in", "located in", "X-based", or "we are from" (with a subject, so "lessons from London" does not count). When several places appear, the right-most wins: "Birmingham, Alabama" is US
 6. last, the website's country domain (`.uk`, `.ca`, `.ie`, `.au`, `.nz`, `.sg`), labelled as such in the evidence
 
-**Organisations excluded:** names that are an organisation's own title ("… Podcast Network", "News", "Clips", "Magazine", "Radio Station" and others), or descriptions where the account speaks as one ("we are a digital agency"). Topic words do not exclude: "Smart Agency Masterclass" (a coach for agency owners) and "Network Marketing" pass. A host who runs an agency is still an expert-led creator. **Known gap:** company, agency and publication podcasts that don't describe themselves this way still pass. See PHASES.md.
+A sentence or address (4-5 above, and street addresses) can describe someone other than the host: a staff coach, a co-founder, an agent, a parent company, or the topic ("Moscow is a city located in northern Idaho"). So the LLM creator check is also given that quote and answers whom it is about (`country_quote_about`): `host` (the host, or the host's own business, practice or show), `someone else`, or `unclear`. Anything but `host` is a rejection ("country not evidenced: ..."). The platform country, the feed location tag and the country domain are not asked about, because they describe the show itself.
+
+**Organisations excluded, in two steps:**
+1. **Rules:** names that are an organisation's own title ("… Podcast Network", "News", "Clips", "Magazine", "Radio Station" and others), or descriptions where the account speaks as one ("we are a digital agency"). Topic words do not exclude: "Smart Agency Masterclass" and "Network Marketing" pass.
+   - a show whose website or contact email is on a broadcaster's or podcast network's domain (`verify.media_domains`: LBC/Global, Vox Media, iHeart, Audacy, SiriusXM, BBC, Locked On and others) is that company's programme, even with a named presenter. Hosting platforms (Libsyn, Spreaker, Art19) are not on the list
+2. **LLM creator check** (`check_creator`): runs only on rows that pass every other check. Gemini (`llm.model`) reads the name, description and website text and answers `creator`, `organisation` or `unclear`, with a quote. The code then checks the quote appears word for word in the creator's own text:
+   - the prompt says a radio or TV station's, broadcaster's, media company's, network's, church's or ministry's programme is `organisation` even with a named presenter
+   - only `creator` with a found quote passes
+   - `organisation`, `unclear`, a quote that isn't found ("unverified"), and a failed call are all rejections with the reason
+   - after 2 failed calls in a row, the rest of the run skips the check ("not run"), and the next run retries
+   - answers are cached by prompt for 30 days
+   - evidence columns: `creator_kind`, `creator_evidence`, `creator_evidence_url`
+
+**Podcast size** (`check_podcast_size`): podcast directories publish no audience count, so the size of a podcast comes from the creator's own YouTube channel, when their description or website links to one (`/@handle`, `/channel/UC…`, `/user/…`, `/c/…`; watch and playlist links are ignored). One `channels.list` call (1 unit, cached) on rows that pass every other check, before the LLM. Above `verify.podcast_max_youtube_subscribers` (500,000) is a rejection; the count and link are kept in `followers_or_subscribers` and `size_evidence`. No link, a hidden count or a failed call is not a reason.
 
 ## Output format (`leads.csv`)
 

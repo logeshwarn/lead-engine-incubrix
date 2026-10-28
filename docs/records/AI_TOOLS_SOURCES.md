@@ -14,6 +14,12 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 
 | 2026-10-27 to 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/enrich.py`, the cache extensions and their tests; ran the live Phase 1 check and the hand inspection; found and fixed the timezone, bad-date, NaN and repeat-failure bugs |
 | 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/verify.py` and its tests; ran verify on the 343-candidate sample; did the 20-row check of the engine's output and fixed the evidence rules it exposed; fixed the enrich feed-description and website bugs |
+| 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | tested which free Gemini models answer; built the LLM creator check, `gemini_json` and their tests; checked the 9 LLM answers by hand |
+| 2026-10-28 | Google Gemini API (runtime, inside the engine) | `gemini-3.5-flash-lite`, free tier | the engine | creator vs organisation in verify: 9 calls, 13,818 tokens, $0. Every answer's quote is checked against the creator's own text |
+| 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built the volume step (category discovery, inactive drop, parallel fetching) and its tests; measured the search limits; ran the 2-category live run and hand-checked all 71 qualified rows |
+| 2026-10-28 | Google Gemini API (runtime, inside the engine) | `gemini-3.5-flash-lite`, free tier | the engine | creator vs organisation on the 2-category run: 164 uncached calls plus 2 from cache, 252,461 tokens, $0 |
+| 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built the verify fixes (broadcaster domains, country-quote check, podcast size) and their tests; reran verify 4 times; hand-checked the 71 and then the 54 qualified rows |
+| 2026-10-28 | Google Gemini API (runtime, inside the engine) | `gemini-3.5-flash-lite`, free tier | the engine | 4 verify reruns for the fixes: 290 uncached calls (2 more failed on a dropped connection), 200 from cache, $0. Tokens: 98,781, 238,406 and 6,530 on three of the reruns; the fourth was logged with cached answers included (236,183), a log bug fixed in the same module, so its own figure is not known exactly |
 
 ## Sources
 
@@ -32,3 +38,8 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-27 to 2026-10-28 | Public podcast RSS feeds (243 shows; 474 live fetches, because the feeds were read again after the timezone fix) | episodes, durations, owner emails, transcript tags |
 | 2026-10-27 to 2026-10-28 | Public creator websites: 249 robots.txt and 409 page fetches (homepage, contact, about), robots.txt respected | contact emails, links and page text, each kept with its source URL |
 | 2026-10-28 | Public podcast RSS feeds (243 shows, read again for the `rss.v3` fix) and a few creator websites (new YouTube website choices) | show descriptions, `podcast:location` tags; no new API quota used |
+| 2026-10-28 | Google Gemini API model tests (7 tiny requests of about 14-146 tokens to 6 models; several timed out or returned 503/404) | chose a model the free tier actually serves; results in DECISIONS.md |
+| 2026-10-28 | Google Gemini API (1 accidental call from a test, a few hundred tokens, owner's free key) | before the fix, the test suite blocked GET but not POST, so one verify test reached Gemini. It used a temporary test database only. Fixed: every test now blocks real GET and POST |
+| 2026-10-28 | Podcast Index API (`podcasts/trending` and `recent/feeds`, 4 calls, categories Fitness and Self-Improvement) | 3,299 candidates for the volume run. Earlier the same day: test calls to compare keyword search and category lists (counts in DECISIONS.md) |
+| 2026-10-28 | Public podcast RSS feeds (3,293 fetched, 2 failed) and creator websites (4,224 pages and 1,989 robots.txt fetched, robots.txt respected; 8 page and 61 robots.txt failures) | episodes, descriptions, contacts and page text for the 3,299 volume-run candidates |
+| 2026-10-28 | YouTube Data API v3 (`channels.list`, 88 calls, 88 units) | size of otherwise-qualified podcasts from the creator's linked YouTube channel |

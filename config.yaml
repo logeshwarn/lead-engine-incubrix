@@ -22,6 +22,7 @@ enrich:
   website_pages: [contact, about]   # besides the homepage, follow the first same-site link containing each word
   website_text_chars: 20000   # page text kept per page
   max_links: 200              # links kept per creator
+  workers: 8                  # feeds and websites fetched at once (different hosts; robots.txt still checked per site)
   # Never fetched: big platforms whose terms forbid scraping, and sites that are not the creator's own.
   # Their links are still recorded (e.g. an Instagram handle is a contact option).
   skip_domains: [youtube.com, youtu.be, instagram.com, facebook.com, x.com, twitter.com, tiktok.com,
@@ -30,7 +31,9 @@ enrich:
 
 discover:
   youtube_max_results: 50     # per search.list call (API maximum); each call costs 100 quota units
-  podcastindex_max_results: 100
+  podcastindex_max_results: 100  # keyword search returns at most 60 whatever is asked (measured 2026-10-28)
+  category_max_results: 1000  # per category list call (API maximum); every show returned is active
+  category_lists: [trending, recent]  # Podcast Index "trending" and "recently updated" lists
   itunes_limit: 50            # per store per term
   itunes_stores: [US]         # 2026-10-27 test: all 7 approved-country stores returned the same 38 shows (DECISIONS.md)
   itunes_pause_seconds: 3     # Apple allows roughly 20 calls a minute; only applied to uncached calls
@@ -40,7 +43,7 @@ segments:                     # approved segments, spelled exactly as the Submis
   - YouTuber/Video-First Creator
   - Expert-Led Creator
 
-discovery_platforms: [youtube, podcast]  # the only sources the brief provides APIs for
+discovery_platforms: [youtube, podcast, podcast_category]  # podcast_category: keywords are Podcast Index category names
 
 countries:
   approved: [US, CA, GB, IE, AU, NZ, SG]  # ISO 3166 codes as in the workbook; the brief's "UK" is GB
@@ -68,6 +71,17 @@ verify:
   repurpose_min_long_items: 2 # "long-form but no Shorts/clips" needs at least this many long items
   consistency_gap_days: 21    # a gap this long between recent uploads is a consistency signal
   quote_chars: 160            # evidence quotes are cut to this length around the match
+  # Podcasts have no public audience count, so their size comes from the creator's linked YouTube
+  # channel. 500,000 is the widest band in the owner's YouTube seeds (pending owner review).
+  podcast_max_youtube_subscribers: 500000
+  # A show whose website or contact email is on one of these domains is a broadcaster's or network's
+  # programme, not a creator's. Hosting platforms (Libsyn, Spreaker, Art19) are not on this list.
+  media_domains: [
+    iheart.com, audacy.com, siriusxm.com, pandora.com, npr.org, bbc.co.uk, bbc.com, global.com, lbc.co.uk,
+    globalplayer.com, voxmedia.com, wondery.com, espn.com, cnn.com, foxnews.com, nbcnews.com, cbsnews.com,
+    abc.net.au, cbc.ca, rte.ie, rnz.co.nz, nytimes.com, lockedonpodcasts.com, bleav.com, 247sports.com,
+    theathletic.com, theringer.com, cumulusmedia.com, salemmedia.com, earwolf.com,
+  ]
 
 evidence:
   max_age_days: 30            # evidence must be checked within 30 days; --refresh re-checks older
@@ -89,4 +103,10 @@ sender:                       # used by draft (Phase 4); must not claim to be In
 
 llm:
   provider: gemini            # Google Gemini API (AI Studio key in .env as LLM_API_KEY); access checked 2026-10-27
-  # model: chosen in Phase 4 from the models the key can use
+  # Free tier. Model quality changes engine quality: a stronger model classifies and writes better,
+  # but costs more or is rate-limited. Swap here; see DECISIONS.md (2026-10-28) for the test results.
+  model: gemini-3.5-flash-lite
+  timeout_seconds: 60         # LLM answers are slower than API lookups
+  pause_seconds: 4            # after each uncached call: about 15 requests a minute
+  cache_days: 30              # same prompt, same answer: reuse it as long as evidence stays valid
+  max_input_chars: 6000       # text sent per creator (description + website), to keep prompts small

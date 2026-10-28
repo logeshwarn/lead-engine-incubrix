@@ -3,8 +3,11 @@
 import hashlib
 import json
 import logging
+import os
 import sqlite3
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -23,6 +26,7 @@ REQUIRED_SECTIONS = [
     "discover",
     "enrich",
     "verify",
+    "llm",
     "segments",
     "countries",
     "language",
@@ -124,7 +128,9 @@ def connect_db(out_dir):
     """Open (or create) <out>/engine.db with the shared tables every stage can rely on."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(out_dir / "engine.db")
+    conn = sqlite3.connect(out_dir / "engine.db", timeout=60)
+    # WAL lets parallel fetch threads write the cache while others read it (see parallel_map).
+    conn.execute("PRAGMA journal_mode=WAL")
     # api_cache: one stored response per request, so reruns cost no quota.
     conn.execute(
         "CREATE TABLE IF NOT EXISTS api_cache (cache_key TEXT PRIMARY KEY, source TEXT, response TEXT, fetched_at TEXT)"
@@ -170,8 +176,10 @@ def cached_get(
     parse=None,
     ok_statuses=(200,),
     failure_max_age_days=None,
+    json_body=None,
+    timeout=None,
 ):
-    """GET a URL through the SQLite cache.
+    """GET a URL (or POST json_body, for the LLM) through the SQLite cache.
 
     Returns (data, was_cached). Retries transient failures `http["retries"]` times with
     exponential backoff, then raises ApiError so the caller can log it and skip the row.
@@ -183,8 +191,9 @@ def cached_get(
     failure_max_age_days: when set, a final failure is remembered for that long and re-raised
     without a request, so a rerun does not wait through the same timeouts again. Left unset for
     APIs, where a remembered quota error would block calls after the quota resets.
+    json_body is part of the cache key, so the same prompt is never sent twice.
     """
-    key = _cache_key(source, url, params, secret_params)
+    key = _cache_key(source, url, {**params, "_body": json_body} if json_body else params, secret_params)
     row = conn.execute("SELECT response, fetched_at FROM api_cache WHERE cache_key = ?", (key,)).fetchone()
     if row:
         age = now_utc() - datetime.fromisoformat(row[1])
@@ -209,10 +218,13 @@ def cached_get(
         raise ApiError(source, status, reason)
 
     def attempt():
+        headers = headers_fn() if headers_fn else None
+        wait = timeout or http["timeout_seconds"]
         try:
-            r = requests.get(
-                url, params=params, headers=headers_fn() if headers_fn else None, timeout=http["timeout_seconds"]
-            )
+            if json_body is None:
+                r = requests.get(url, params=params, headers=headers, timeout=wait)
+            else:
+                r = requests.post(url, params=params, headers=headers, json=json_body, timeout=wait)
         except requests.RequestException as e:
             # Only the error type: the message can contain the URL, which may hold a key.
             raise _Transient(type(e).__name__) from None
@@ -261,3 +273,77 @@ def podcastindex_headers(key, secret, now=None):
     now = str(int(now if now is not None else time.time()))
     digest = hashlib.sha1((key + secret + now).encode("utf-8")).hexdigest()
     return {"X-Auth-Key": key, "X-Auth-Date": now, "Authorization": digest, "User-Agent": USER_AGENT}
+
+
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+def _gemini_parse(r):
+    """Keep the response only if the model's text is valid JSON, so a broken answer is never cached."""
+    data = r.json()
+    json.loads(data["candidates"][0]["content"]["parts"][0]["text"])
+    return data
+
+
+def gemini_json(conn, config, system, prompt, schema):
+    """Ask Gemini for JSON that matches `schema`. Returns (answer, tokens_used, was_cached).
+
+    Cached by prompt, so reruns cost nothing. The key travels in a header, never the URL.
+    Raises ApiError (logged by the caller) when the key is missing or the call fails.
+    """
+    llm = config["llm"]
+    api_key = os.getenv("LLM_API_KEY", "")
+    if not api_key:
+        raise ApiError("gemini", "n/a", "LLM_API_KEY is empty")
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0,  # the same text should always get the same answer
+            "responseMimeType": "application/json",
+            "responseSchema": schema,
+        },
+    }
+    data, was_cached = cached_get(
+        conn,
+        "gemini",
+        GEMINI_URL.format(model=llm["model"]),
+        {},
+        config["http"],
+        llm["cache_days"],
+        headers_fn=lambda: {"x-goog-api-key": api_key},
+        parse=_gemini_parse,
+        json_body=body,
+        timeout=llm["timeout_seconds"],
+    )
+    if not was_cached:
+        time.sleep(llm["pause_seconds"])  # stay inside the free tier's requests-per-minute limit
+    answer = json.loads(data["candidates"][0]["content"]["parts"][0]["text"])
+    tokens = data.get("usageMetadata", {}).get("totalTokenCount", 0)
+    return answer, tokens, was_cached
+
+
+def parallel_map(conn, workers, fn, items):
+    """Run fn(conn, item) for every item on `workers` threads; results come back in input order.
+
+    Each thread opens its own connection to the same database file, because a SQLite connection
+    must not be shared between threads. Used for feeds and websites, which are slow to answer
+    but different hosts, so fetching several at once cuts the run time without hammering a site.
+    """
+    path = conn.execute("PRAGMA database_list").fetchone()[2]
+    conn.commit()  # threads must see everything written so far
+    local, opened, lock = threading.local(), [], threading.Lock()
+
+    def call(item):
+        if not hasattr(local, "conn"):
+            local.conn = sqlite3.connect(path, timeout=60, check_same_thread=False)
+            with lock:
+                opened.append(local.conn)
+        return fn(local.conn, item)
+
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            return list(pool.map(call, items))
+    finally:
+        for c in opened:
+            c.close()

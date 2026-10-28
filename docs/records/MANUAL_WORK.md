@@ -22,11 +22,17 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-28 | Owner | Checked progress of the slow Phase 1 run and chose to let it finish rather than cap the sample | The full 343-candidate run completed; it showed the need for parallel fetching in Phase 5 | not recorded |
 | 2026-10-28 | Owner | Started a full run on all 42 seeds in their own terminal (01:08), then stopped it during enrich | Discover finished: 6,268 candidates, 82 new YouTube searches (8,200 units). About 230 YouTube channels enriched and cached before the stop | not recorded |
 | 2026-10-28 | Owner | Committed and pushed enrich (`dede66f`) | In sync with `origin/main` | not recorded |
+| 2026-10-28 | Owner | Committed and pushed verify (`7a7125f`) | In sync with `origin/main` | not recorded |
+| 2026-10-28 | Owner | Chose the Gemini creator check over stricter rules, and asked that the model-quality trade-off be documented | Recorded in DECISIONS.md and config.yaml | not recorded |
+| 2026-10-28 | Owner | Chose "Volume first": raise discovery volume before building dedupe | Volume step built and measured; results in PHASES.md | not recorded |
+| 2026-10-28 | Owner | Chose to fix the doubtful rows in verify before dedupe; asked to retry when the Gemini connection dropped mid-run | Verify fixes built; 54 qualified after the rerun | not recorded |
 
 ## Pending (not done yet)
 
 These are not entries. Each one moves to the log once it is done.
 
 - Review the corrected `data/seeds.csv` and confirm it
-- Decide how verify separates creators from organisations (LLM step or stricter rules)
+- Review the 16 category seeds S043-S058 in `data/seeds.csv` (added by Claude Code)
+- Commit the creator-check work, the volume step and the verify fixes
+- Confirm or change the podcast size limit (500,000 YouTube subscribers, `verify.podcast_max_youtube_subscribers`)
 - Note: the 20-row check in PHASES.md was done by Claude Code on the engine's output. The 40-lead audit in Phase 7 is the owner's own manual work

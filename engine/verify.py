@@ -14,6 +14,7 @@ them to rejected.csv. Nothing is dropped silently.
 
 import json
 import logging
+import os
 import re
 from datetime import timedelta
 
@@ -21,7 +22,8 @@ import pandas as pd
 import tldextract
 from langdetect import DetectorFactory, LangDetectException, detect
 
-from engine.common import now_utc
+from engine.common import ApiError, cached_get, gemini_json, now_utc
+from engine.enrich import YT_CHANNELS_URL
 
 log = logging.getLogger("verify")
 
@@ -183,9 +185,11 @@ SOCIAL_PROFILE = [
 
 VERIFIED_COLUMNS = [
     "platform", "platform_id", "creator_name", "creator_segment", "niche", "seed_id", "profile_url",
-    "stable_creator_id", "followers_or_subscribers", "website",
+    "stable_creator_id", "followers_or_subscribers", "size_evidence", "website",
     "country_iso2", "country_evidence", "country_evidence_url",
     "primary_language", "english_share",
+    "creator_kind", "creator_evidence", "creator_evidence_url",  # set by the LLM check (check_creator)
+    "country_quote_about",  # LLM: whom a website country quote describes (check_creator)
     "content_count_30d", "longform_count_60d", "last_content_date", "recent_content_url", "recent_content_title",
     "monetization_signal", "monetization_evidence", "monetization_evidence_url",
     "incubrix_need", "need_kind", "need_evidence", "need_evidence_url",
@@ -234,13 +238,23 @@ def texts(profile, items):
 # ---------- the checks; each returns (passed, details) ----------
 
 
-def check_not_organisation(profile):
+def check_not_organisation(profile, media_domains=()):
     m = EXCLUDE_NAME.search(profile["name"] or "")
     if m:
         return False, f"not a creator: {m.group(0)!r} in name"
     m = EXCLUDE_DESC.search(profile["description"] or "")
     if m:
         return False, f"not a creator: {m.group(0)!r} in description"
+    # A show whose own website or contact email is on a broadcaster's or podcast network's domain is
+    # that company's programme, even with a named presenter (hand check 2026-10-28: LBC, Vox Media).
+    media = set(media_domains)
+    website = registered_domain(profile.get("website"))
+    if website in media:
+        return False, f"not a creator: website on {website} (broadcaster or network)"
+    for e in json.loads(profile.get("emails") or "[]"):
+        domain = registered_domain(e["value"])
+        if domain in media:
+            return False, f"not a creator: contact email on {domain} (broadcaster or network)"
     return True, None
 
 
@@ -474,7 +488,7 @@ def verify_profile(profile, items, config):
     if profile["segment"] not in config["segments"]:
         real_ok = False
         reasons.append(f"segment {profile['segment']!r} not approved")
-    not_org, why = check_not_organisation(profile)
+    not_org, why = check_not_organisation(profile, config["verify"]["media_domains"])
     if not not_org:
         real_ok = False
         reasons.append(why)
@@ -549,6 +563,194 @@ def verify_profile(profile, items, config):
     return row
 
 
+# ---------- check 1: size of podcasts, from the creator's own linked YouTube channel ----------
+
+# Channel links only; watch, playlist and shorts links say nothing about the creator's channel.
+YT_CHANNEL_LINK = re.compile(
+    r"youtube\.com/(?:channel/(?P<id>UC[\w-]{22})|@(?P<handle>[\w.-]+)|user/(?P<user>[\w.-]+)"
+    r"|c/(?P<custom>[\w.-]+)|(?P<bare>(?!(watch|playlist|shorts|embed|results|redirect|live|post)\b)[\w.-]+))"
+    r"/?(?:[?#]|$)",
+    re.I,
+)
+
+
+def linked_youtube_channel(profile):
+    """(channels.list params, link) for the first YouTube channel the creator links to, or (None, None)."""
+    for link in json.loads(profile.get("links") or "[]"):
+        m = YT_CHANNEL_LINK.search(link["url"])
+        if not m:
+            continue
+        if m["id"]:
+            return {"id": m["id"]}, link["url"]
+        if m["user"]:
+            return {"forUsername": m["user"]}, link["url"]
+        # Old custom URLs (/c/Name, /Name) mostly became handles of the same name.
+        return {"forHandle": "@" + (m["handle"] or m["custom"] or m["bare"])}, link["url"]
+    return None, None
+
+
+def check_podcast_size(conn, config, row, profile, api_key):
+    """Reject a podcast whose linked YouTube channel is above the size limit. Unknown size is no reason.
+
+    Podcast directories publish no audience count, so the creator's own YouTube channel (linked from
+    their description or website) is the only public size figure (hand check 2026-10-28).
+    """
+    params, link = linked_youtube_channel(profile)
+    if params is None:
+        return
+    try:
+        data, _ = cached_get(
+            conn,
+            "youtube.channels",
+            YT_CHANNELS_URL,
+            {**params, "part": "snippet,statistics", "key": api_key},
+            config["http"],
+            config["cache"]["enrich_max_age_days"],
+        )
+    except ApiError as e:
+        log.error("size check %s: %s", row["platform_id"], e)
+        return
+    channel = (data.get("items") or [None])[0]
+    if channel is None or channel.get("statistics", {}).get("hiddenSubscriberCount"):
+        return
+    subs = int(channel["statistics"].get("subscriberCount", 0))
+    title = channel.get("snippet", {}).get("title")
+    row.update(followers_or_subscribers=subs, size_evidence=f"YouTube channel {title} ({link}): {subs} subscribers")
+    limit = config["verify"]["podcast_max_youtube_subscribers"]
+    if subs > limit:
+        row.update(
+            candidate_status="Rejected",
+            check_real_relevant=False,
+            rejection_reason=f"size: linked YouTube channel {title} has {subs} subscribers (above {limit})",
+        )
+
+
+def apply_size_check(conn, config, rows, profiles_by_id):
+    todo = [r for r in rows if r["candidate_status"] == "Qualified" and r["platform"] == "podcast"]
+    api_key = os.getenv("YOUTUBE_API_KEY", "")
+    if todo and not api_key:
+        log.error("YOUTUBE_API_KEY is empty: podcast size check skipped")
+        return
+    for row in todo:
+        check_podcast_size(conn, config, row, profiles_by_id[row["platform_id"]], api_key)
+
+
+# ---------- check 1, last step: creator or organisation (LLM, decision 2026-10-28) ----------
+
+CREATOR_SYSTEM = """You decide who runs a podcast or YouTube channel, using ONLY the text supplied.
+- "creator": one person, or a small group of named people, whose own voice and expertise are the show.
+  This includes coaches, consultants and educators, and creator-led businesses where the host is the face.
+- "organisation": the show is content of a company, agency, brand, publication, network or institution,
+  with no individual creator as its face; or a fan or repost account. A programme of a radio or TV
+  station, broadcaster, media company, podcast network, church or ministry is "organisation" even when
+  a named presenter hosts it.
+- "unclear": the text does not show which.
+Return "quote": an exact, word-for-word copy of 10 to 200 characters from the DESCRIPTION or WEBSITE
+section that best supports your answer, and "source": the section it came from.
+Never write a quote that is not in the text. If unsure, answer "unclear".
+If a COUNTRY QUOTE is given, return "country_quote_about": "host" if it says where the show's own
+host(s) live or are based, or is the address of the host's own business, practice or show; "someone
+else" if it is about another person (staff, co-founder, guest, agent) or another organisation (a parent
+company, network, publisher or agency); or "unclear". If no COUNTRY QUOTE is given, return "not asked"."""
+
+CREATOR_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "kind": {"type": "STRING", "enum": ["creator", "organisation", "unclear"]},
+        "reason": {"type": "STRING"},
+        "quote": {"type": "STRING"},
+        "source": {"type": "STRING", "enum": ["DESCRIPTION", "WEBSITE"]},
+        "country_quote_about": {"type": "STRING", "enum": ["host", "someone else", "unclear", "not asked"]},
+    },
+    "required": ["kind", "reason", "quote", "source", "country_quote_about"],
+}
+
+
+def normalise(text):
+    return re.sub(r"\s+", " ", text or "").strip().lower()
+
+
+def creator_prompt(profile, max_chars, country_quote=None):
+    pages = json.loads(profile["pages"] or "[]")
+    website = "\n\n".join(f"[{p['url']}]\n{p['text']}" for p in pages)
+    asked = f"COUNTRY QUOTE: {country_quote}\n\n" if country_quote else ""
+    text = (
+        f"NAME: {profile['name']}\nPLATFORM: {profile['platform']}\n\n{asked}"
+        f"DESCRIPTION:\n{profile['description'] or ''}\n\nWEBSITE:\n{website}"
+    )
+    return text[:max_chars]
+
+
+def country_quote_to_check(row, profile):
+    """The country quote when it is a sentence or an address, else None.
+
+    The platform country, the feed location tag and the website's own domain describe the show itself.
+    A sentence or address can describe someone else (hand check 2026-10-28: "Coach Kendal lives in
+    Texas" on a show hosted by Bonnie; "Moscow is a city located in northern Idaho" in a true-crime
+    show's description), so the LLM says whom it is about.
+    """
+    q = row.get("country_evidence") or ""
+    if not q or q.startswith(("Website domain", "Feed location", "Channel country")):
+        return None
+    return q
+
+
+def check_creator(conn, config, profile, country_quote=None):
+    """Ask the LLM whether a creator runs the show. Returns (kind, quote, url, reason, about, tokens).
+
+    The model's quote must appear word for word in the creator's own text; if it does not, the
+    answer is "unverified" and the row is rejected, so the model cannot invent evidence. `about` says
+    whom `country_quote` describes; that quote is the engine's own, so the model only judges it.
+    """
+    prompt = creator_prompt(profile, config["llm"]["max_input_chars"], country_quote)
+    answer, tokens, was_cached = gemini_json(conn, config, CREATOR_SYSTEM, prompt, CREATOR_SCHEMA)
+    tokens = 0 if was_cached else tokens  # only new calls use the free quota
+    about = answer.get("country_quote_about") if country_quote else None
+    quote_text = normalise(answer.get("quote"))
+    sources = own_texts(profile)
+    url = next((u for t, u in sources if len(quote_text) >= 10 and quote_text in normalise(t)), None)
+    if url is None:
+        return "unverified", answer.get("quote"), None, "model quote not found in the creator's text", about, tokens
+    return answer["kind"], answer["quote"], url, answer.get("reason"), about, tokens
+
+
+def apply_creator_check(conn, config, rows, profiles_by_id):
+    """Run check_creator on rows that passed everything else; reject any that are not creators."""
+    tokens_used, failures_in_a_row, calls = 0, 0, 0
+    for row in rows:
+        if row["candidate_status"] != "Qualified":
+            continue  # the LLM is only asked about rows that would otherwise qualify
+        if failures_in_a_row >= 2:  # the LLM is down or out of quota: stop asking, the next run retries
+            kind, reason = None, "creator check not run (LLM unavailable)"
+        else:
+            try:
+                prof = profiles_by_id[row["platform_id"]]
+                country_q = country_quote_to_check(row, prof)
+                kind, q, url, note, about, tokens = check_creator(conn, config, prof, country_q)
+                failures_in_a_row, calls, tokens_used = 0, calls + 1, tokens_used + tokens
+                row.update(creator_kind=kind, creator_evidence=q, creator_evidence_url=url, country_quote_about=about)
+                reason = {
+                    "creator": None,
+                    "organisation": f"not a creator (LLM): {note}",
+                    "unclear": "creator status unclear (LLM)",
+                    "unverified": "creator check: model quote not found in the creator's text",
+                }[kind]
+                if reason is None and country_q and about != "host":
+                    reason = (
+                        "country not evidenced: the quote is about someone else, not the host (LLM)"
+                        if about == "someone else"
+                        else f"country not evidenced: the quote is not shown to be about the host (LLM: {about})"
+                    )
+            except ApiError as e:
+                failures_in_a_row += 1
+                kind, reason = None, f"creator check failed ({e.reason or e.status})"
+                log.error("creator check %s: %s", row["platform_id"], e)
+        if reason:
+            row.update(candidate_status="Rejected", rejection_reason=reason, check_real_relevant=False)
+    log.info("creator check: %d LLM answers, %d tokens used by uncached calls", calls, tokens_used)
+    return tokens_used
+
+
 def run(conn, config):
     profiles = pd.read_sql("SELECT * FROM profiles", conn)
     profiles = profiles.astype(object).where(profiles.notna(), None)
@@ -558,7 +760,11 @@ def run(conn, config):
     items = items.sort_values("published", ascending=False)
     by_creator = {pid: g.to_dict("records") for pid, g in items.groupby("platform_id")}
 
-    rows = [verify_profile(p, by_creator.get(p["platform_id"], []), config) for p in profiles.to_dict("records")]
+    profile_rows = profiles.to_dict("records")
+    rows = [verify_profile(p, by_creator.get(p["platform_id"], []), config) for p in profile_rows]
+    by_id = {p["platform_id"]: p for p in profile_rows}
+    apply_size_check(conn, config, rows, by_id)  # before the LLM, so a show that is too big costs no LLM call
+    apply_creator_check(conn, config, rows, by_id)
     verified = pd.DataFrame(rows, columns=VERIFIED_COLUMNS)
     verified.to_sql("verified", conn, if_exists="replace", index=False)
 

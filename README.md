@@ -53,7 +53,7 @@ python run.py --refresh
 
 ## Config
 
-- `data/seeds.csv`: the niches and search terms to discover from. Each row is a niche, not a lead. The columns are explained in [docs/WORKFLOW.md](docs/WORKFLOW.md). Set `status` to `paused` to skip a row.
+- `data/seeds.csv`: the niches and search terms to discover from. Each row is a niche, not a lead. A row with `primary_platform` = `podcast_category` names a Podcast Index category (e.g. `Fitness`) and brings up to 2,000 active shows. The columns are explained in [docs/WORKFLOW.md](docs/WORKFLOW.md). Set `status` to `paused` to skip a row.
 - `config.yaml`: thresholds, country and segment caps, activity rules, evidence age, the cache window (`cache`) and search sizes (`discover`). Values come from the brief, and segment and country names come from the Submission Workbook. Changes and their reasons go in [docs/DECISIONS.md](docs/DECISIONS.md).
 - `.env`: API keys only. `.env.example` lists the keys you need.
 
@@ -94,6 +94,7 @@ python -m ruff check .
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for YouTube**: the key is wrong, the YouTube Data API v3 is not enabled in the Google Cloud project, or the daily quota is used up.
 - **`check_apis.py` says FAIL with HTTP 401 for Podcast Index**: the key or secret is wrong, or your PC clock is off. The auth uses the current time.
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for Gemini**: the key is wrong or restricted. Create a new one at https://aistudio.google.com (Get API key).
+- **`creator check failed` or `creator check not run (LLM unavailable)`** in `rejection_reason`: Gemini did not answer (free-tier load or quota). Run again later; answers already given are cached. To try another model, change `llm.model` in `config.yaml`.
 - **Log says `YouTube daily quota used up`**: the remaining YouTube searches were skipped. Run again after the quota resets (midnight Pacific time). Finished searches are cached, so the run continues where it stopped.
 - **`input file not found`**: check the `--input` path.
 - **The first run is slow** (about 5 s per new podcast or website): feeds and websites are fetched one at a time, and a slow site can take up to 3 × 20 s before it is skipped. Reruns are served from the cache and take seconds. Failed sites are retried after 1 day.

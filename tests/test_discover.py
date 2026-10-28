@@ -154,3 +154,51 @@ def test_missing_youtube_key_skips_youtube(conn, config, fake_http, seeds_file, 
     fake = fake_http(respond)
     discover.run(conn, config, seeds_file)
     assert not any("googleapis" in call["url"] for call in fake.calls)
+
+
+# ---------- volume step: category lists and inactive shows ----------
+
+NOW_TS = int(pd.Timestamp.now(tz="UTC").timestamp())
+CATEGORY_BODY = {
+    "feeds": [
+        {"id": 21, "itunesId": 2100, "title": "Active A", "url": "https://feed/a", "language": "en",
+         "newestItemPublishTime": NOW_TS - 5 * 86400},
+        {"id": 22, "itunesId": 2200, "title": "Old B", "url": "https://feed/b", "language": "en",
+         "newestItemPublishTime": NOW_TS - 200 * 86400},
+        {"id": 23, "itunesId": None, "title": "No date C", "url": "https://feed/c", "language": "en"},
+    ]
+}  # fmt: skip
+
+
+@pytest.fixture
+def category_seeds(tmp_path):
+    cols = ["seed_id", "segment", "niche", "primary_platform", "discovery_keywords", "need_signal_to_check",
+            "size_min", "size_max", "status"]  # fmt: skip
+    path = tmp_path / "cat_seeds.csv"
+    pd.DataFrame([["C1", "Podcaster/Video Podcaster", "fitness", "podcast_category", "Fitness", "x", None, None,
+                   "active"]], columns=cols).to_csv(path, index=False)  # fmt: skip
+    return path
+
+
+def test_category_seed_calls_both_lists(conn, config, fake_http, category_seeds):
+    fake = fake_http(lambda url, params: FakeResponse(200, CATEGORY_BODY))
+    discover.run(conn, config, category_seeds)
+    assert sorted(c["url"].rsplit("/", 2)[-2] + "/" + c["url"].rsplit("/", 1)[-1] for c in fake.calls) == [
+        "podcasts/trending",
+        "recent/feeds",
+    ]
+    assert all(c["params"] == {"cat": "Fitness", "lang": "en", "max": 1000} for c in fake.calls)
+
+
+def test_inactive_podcasts_dropped_unknown_kept(conn, config, fake_http, category_seeds):
+    fake_http(lambda url, params: FakeResponse(200, CATEGORY_BODY))
+    c = discover.run(conn, config, category_seeds)
+    assert sorted(c["name"]) == ["Active A", "No date C"]  # Old B's newest episode is 200 days old
+    assert c.set_index("name").loc["Active A", "newest_item_at"].startswith(str(pd.Timestamp.now(tz="UTC").year))
+
+
+def test_drop_inactive_never_touches_youtube():
+    old = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=300)).isoformat()
+    df = pd.DataFrame([{"platform": "youtube", "newest_item_at": old}, {"platform": "podcast", "newest_item_at": old}])
+    kept, dropped = discover.drop_inactive(df, 60)
+    assert list(kept["platform"]) == ["youtube"] and dropped == 1
