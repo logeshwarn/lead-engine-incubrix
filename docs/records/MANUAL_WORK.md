@@ -32,6 +32,7 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-28 | Owner | Committed dedupe (`255fe23`). Decided the caps behaviour: trim a country above 60%, then check; on a failed rule, finish the run but exit with an error | Recorded in DECISIONS.md; caps built | not recorded |
 | 2026-10-28 | Owner | Committed caps (`20e34cb`) and asked to finish Phase 2 | rejected.csv and the 20-row check done | not recorded |
 | 2026-10-28 | Owner | Committed Phase 2 (`796b3cb`). Chose the scoring weights ("Balanced", from 3 options) and the B/C rule (score 50+ is B) | Recorded in config.yaml and DECISIONS.md; score built | not recorded |
+| 2026-10-28 | Owner | Committed score (`41e2bda`) and asked to continue with route | route built; Phase 3 done | not recorded |
 
 ## Pending (not done yet)
 

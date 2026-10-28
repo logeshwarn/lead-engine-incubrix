@@ -76,6 +76,7 @@ Already produced today:
   - `deduped` (dedupe): the same rows, one Qualified row per creator; `duplicate_of` names the row a duplicate was merged into
   - `capped` and `cap_checks` (caps): the final country mix, and each hard rule with its value and pass/fail
   - `scored` (score): each lead's 5 score parts, `lead_score` and `priority` (A, B or C)
+  - `routed` (route): the best and backup channel per lead, each with its handle or URL and evidence URL
   
   Delete it to start from scratch, which spends the quota again. Any SQLite viewer (for example "DB Browser for SQLite") can open it to inspect the rows by hand.
 - `output/logs/run_YYYYMMDD_HHMMSS.log`: one log file per run

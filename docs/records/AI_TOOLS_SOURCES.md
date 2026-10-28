@@ -23,6 +23,7 @@ Every AI tool and outside source used to build the project, as it happens. Dated
 | 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built `engine/caps.py`, its tests and the run.py exit code; ran the full cached pipeline (no new API calls) |
 | 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | built rejected.csv (`engine/export.py`) and its tests; did the 20-row hand check on stored evidence and fixed the 3 rule bugs it found; reran verify to export from cache (no new API calls) |
 | 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | measured what separates the 42 leads; proposed 3 weight sets; built `engine/score.py`, caps-by-score and their tests; ran dedupe to score on stored data (no API calls) |
+| 2026-10-28 | Claude Code (Claude desktop app, Code tab) | Claude Opus 5.5 | engine build | read the assignment's channel rules; built `engine/route.py`, the backup requirement in verify and their tests; hand-checked all 40 channel pairs; reran verify to route from cache (no new API calls) |
 | 2026-10-28 | Google Gemini API (runtime, inside the engine) | `gemini-3.5-flash-lite`, free tier | the engine | 4 verify reruns for the fixes: 290 uncached calls (2 more failed on a dropped connection), 200 from cache, $0. Tokens: 98,781, 238,406 and 6,530 on three of the reruns; the fourth was logged with cached answers included (236,183), a log bug fixed in the same module, so its own figure is not known exactly |
 
 ## Sources

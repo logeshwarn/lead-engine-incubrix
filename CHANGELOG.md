@@ -2,6 +2,15 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Stage 7, route (Phase 3 done)
+
+- Added `engine/route.py`: `scored` -> `routed`. Best channel (email, contact form, guest-pitch page) and backup channel (another checkable channel, the creator's own social profile, a second email), each with its URL and evidence URL. Own-domain emails first, role mailboxes last, template placeholders never.
+- `engine/verify.py`: "reachable" now needs a best and a backup channel (`route.choose`); a lead with one contact is rejected with "no backup channel". The unused `VERIFIABLE_CHANNELS` constant was removed.
+- `run.py`: runs route after score.
+- Tests: `tests/test_route.py` (12) and a verify test; 222 in total.
+- Real data: 44 qualified, 40 final leads (US 24, GB 9, AU 3, CA 3, NZ 1), 25 A and 15 B.
+- Docs: WORKFLOW (stage 7, reachable), DECISIONS (3 entries), PHASES (Phase 3 done), README, and both records files.
+
 ## 2026-10-28: Stage 6, score
 
 - Added `engine/score.py`: `capped` -> `scored`. Five score parts kept as columns, `lead_score` 0-100, `priority` A (top 25), B (50+), C.

@@ -659,3 +659,13 @@ def test_hosting_platform_accounts_are_not_contacts(cfg, url, kept):
     p = profile(emails="[]", pages=pages, links=json.dumps([{"url": url, "source_url": SITE}]))
     found = [c["value"] for c in verify.find_contacts(p, good_items(), cfg)]
     assert (url in found) == kept
+
+
+def test_single_contact_fails_reachable_for_lack_of_a_backup(cfg):
+    p = profile(
+        pages="[]",
+        emails=json.dumps([{"value": "hello@janedoeshow.com", "source_url": "https://podcasts.apple.com/podcast/id1"}]),
+    )
+    row = run_one(cfg, p)
+    assert row["check_reachable"] is False
+    assert "no backup channel (only Email hello@janedoeshow.com)" in row["rejection_reason"]

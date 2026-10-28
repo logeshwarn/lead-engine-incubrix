@@ -22,6 +22,7 @@ import pandas as pd
 import tldextract
 from langdetect import DetectorFactory, LangDetectException, detect
 
+from engine import route
 from engine.common import ApiError, cached_get, gemini_json, now_utc
 from engine.enrich import YT_CHANNELS_URL
 
@@ -484,11 +485,6 @@ def find_contacts(profile, items, config):
     return unique
 
 
-# Channels that can be checked without reading a platform we must not scrape. A social link alone
-# cannot pass "active in the last 60 days", so it can only ever be a backup channel.
-VERIFIABLE_CHANNELS = {"Email", "Contact form", "Podcast guest pitch"}
-
-
 def verify_profile(profile, items, config):
     """All checks for one creator. Returns one `verified` row."""
     width = config["verify"]["quote_chars"]
@@ -570,14 +566,19 @@ def verify_profile(profile, items, config):
     if need_kind is None:
         reasons.append("no evidence of an IncuBrix need")
 
-    # 5. Reachable: at least one published, checkable business channel; creator active in the last 60 days.
+    # 5. Reachable: a best and a backup channel the creator published (route.choose: the best one is
+    # checkable, the backup may be their own social profile); creator active in the last 60 days.
     contacts = find_contacts(profile, items, config)
     row["contacts"] = json.dumps(contacts)
     active_60 = bool(latest) and latest["published"] >= now - timedelta(days=config["reachable"]["channel_active_days"])
-    reachable = active_60 and any(c["channel"] in VERIFIABLE_CHANNELS for c in contacts)
-    row["check_reachable"] = reachable
-    if not reachable:
-        reasons.append("no published business contact" if active_60 else "no activity in the last 60 days")
+    best, backup = route.choose(contacts, profile["name"], profile["website"])
+    row["check_reachable"] = active_60 and best is not None and backup is not None
+    if not active_60:
+        reasons.append("no activity in the last 60 days")
+    elif best is None:
+        reasons.append("no published business contact")
+    elif backup is None:
+        reasons.append(f"no backup channel (only {best['channel']} {best['value']})")
 
     # 6. Personalisable: a specific recent item to cite (the message itself is checked in draft).
     row["check_personalisable"] = bool(latest and latest["title"] and row["recent_content_url"])

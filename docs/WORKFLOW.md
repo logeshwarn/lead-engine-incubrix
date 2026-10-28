@@ -12,7 +12,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 4 | dedupe | `engine/dedupe.py` | `verified` | `deduped` table: every verified row; one Qualified row per creator (platform ID, website domain, email); duplicates and shared-contact rows Rejected with the reason | **built** |
 | 5 | caps | `engine/caps.py` | `deduped` | `capped` table (a country above 60% trimmed) and `cap_checks` table (each hard rule, value, limit, passed) | **built** |
 | 6 | score | `engine/score.py` | `capped` | `scored` table: 5 score parts, `lead_score` 0-100, `priority` A/B/C | **built** |
-| 7 | route | `engine/route.py` | scored | best channel and backup channel | not built |
+| 7 | route | `engine/route.py` | `scored` | `routed` table: best and backup channel, each with its handle or URL and evidence URL | **built** |
 | 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
 | 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | `rejected.csv` built (Phase 2); the rest in Phase 5 |
 
@@ -183,6 +183,16 @@ Input: `capped`. Output: `scored`, the same rows plus `score_need`, `score_volum
 
 A score depends only on the lead's own evidence, so caps uses the same function (`rank_key`) to decide which leads to trim: the lowest scores go first.
 
+## Stage 7: route
+
+Input: `scored`. Output: `routed`, the same rows plus `best_channel`, `channel_handle_or_url`, `channel_evidence_url`, `backup_channel`, `backup_handle_or_url`, `backup_evidence_url`. Only contacts the creator published (verify's `contacts`) are used; nothing is guessed.
+
+- **Best channel:** the creator's best email; else a contact form; else a podcast guest-pitch page. These are the channels we can check the creator presents for business contact. A social profile cannot be checked for activity (we do not scrape those platforms), so it is never the best channel.
+- **Which email:** an address on the creator's own website domain first (`shannon@shannonoflaherty.com` before `producer@transformationtalkradio.com`); role mailboxes (sales, support, meetings, producer and others) last; website-template placeholders (`info@mysite.com`) never.
+- **Backup channel:** another checkable channel of a different kind (usually the contact form); else the creator's own social profile, LinkedIn first, then Instagram, X, TikTok; else a second email address. A social profile counts as the creator's when its handle contains the show's or website's name, or when it is the only profile on that platform their own pages link to. Pages that link several (Storied links 4 Instagram accounts, its contributors') need the name match.
+
+The same `route.choose` runs inside verify's "reachable" check: a lead without both channels is rejected there ("no backup channel (only Email ...)"), so caps and score never count it. Route itself raises an error if a qualified row has no pair, which would mean stale tables.
+
 ## Stage 9: export (rejected.csv so far)
 
 `export.write_rejected` reads `capped` and writes every Rejected row to `<out>/rejected.csv` with `REJECTED_COLUMNS`: platform, platform ID, name, profile URL, website, segment, niche, seed, country and its evidence URL, `rejection_reason` (all reasons, separated by semicolons; the first is the main one), `duplicate_of` and `checked_date`. The workbook has no tab for rejects, so these columns are the engine's own. A rejected row without a reason stops the run with an error, because nothing may be dropped silently. `leads.csv`, `outreach/` and `run_report.md` come in Phase 5.
@@ -225,6 +235,7 @@ Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer
      - (b) the creator's **own words**, for example "hiring an editor". This scores higher.
 5. **Reachable**
    - The channel is real, public, presented by the creator for business contact, and active in the last 60 days.
+   - There must be a best and a backup channel (assignment section 1: "the best channel to reach them, a backup channel and the verified public handle or URL"). The rules are in stage 7, route.
    - Never guessed. The YouTube "About" email is behind a captcha and is never used.
    - A hosting platform's own social accounts (x.com/rss, instagram.com/rss_podcasting, linkedin.com/company/rsscom) sit in the footer of every hosted show page and are not the creator's.
 6. **Personalised and compliant**

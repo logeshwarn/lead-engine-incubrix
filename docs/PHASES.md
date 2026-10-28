@@ -7,7 +7,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | 0 | Setup | done (2026-10-27) |
 | 1 | Discover and enrich | done (2026-10-28) |
 | 2 | Verify, dedupe, caps | done (2026-10-28) |
-| 3 | Score and route | in progress (score built 2026-10-28) |
+| 3 | Score and route | done (2026-10-28) |
 | 4 | Outreach drafting | not started |
 | 5 | Scale, export, refresh | not started |
 | 6 | Seed test | not started |
@@ -175,7 +175,7 @@ Done when every lead has a best channel, a backup channel and a score, and weigh
 | Module | Status |
 |---|---|
 | `engine/score.py` | done (2026-10-28) |
-| `engine/route.py` | not started |
+| `engine/route.py` | done (2026-10-28) |
 
 **Score built (2026-10-28):** weights chosen by the owner ("Balanced"; DECISIONS.md). Caps now trims by the same score. On the 42 leads:
 - scores 61 to 88, median 77; **25 Priority A, 17 B, 0 C**. A is 19 US, 5 GB, 1 AU.
@@ -183,6 +183,14 @@ Done when every lead has a best channel, a backup channel and a score, and weigh
 - Caps trimmed the 7 lowest-scoring US leads (54 to 66); the US leads kept in A score 75 to 88.
 - Known doubtful rows rank high: Oncology Today (a company the LLM called a creator) is 3rd, and Storied: San Francisco (country quote about a photographer) is in A. The score trusts verify, so the owner's Phase 7 audit should start with the A list.
 - Tests: `tests/test_score.py` (9 tests: each part, full marks, A/B/C split, stable ties, table) and a caps test that the lowest score is trimmed first.
+
+**Route built (2026-10-28):** every lead has a best and a backup channel with its URL and evidence URL. Requiring a backup moved into verify's "reachable" check, so the numbers changed: **49 -> 44 qualified, 40 final leads: US 24 (60%), GB 9, AU 3, CA 3, NZ 1; 25 A, 15 B**. IE is gone (Easy Double has one email only); 5 countries still pass.
+- Best: Email 37, Contact form 3. Backup: Contact form 26, Instagram 8, LinkedIn 3, guest-pitch page 2, a second email 1.
+- Hand check of all 40 pairs: emails on the creator's own domain were picked over a network producer's and a sales desk's address; `info@mysite.com` (a template placeholder) was skipped; Storied's backup is the show's own Instagram, not a contributor's.
+- Doubtful: Good Areas' backup is the only Instagram its site links (`ishitk86`), which may not be Jarrod Kimber's. Dave Smith Dharma has two gmail addresses and nothing says which is his; the engine takes the first alphabetically.
+- Tests: `tests/test_route.py` (12 tests) and a verify test for the missing backup.
+
+**Phase 3 is done:** every lead has a best channel, a backup channel and a score, and the weights are in DECISIONS.md.
 
 Open questions for later phases:
 - Phase 4: drafting needs the LLM again; Priority A sequences use the A list above.
