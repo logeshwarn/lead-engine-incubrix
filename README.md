@@ -62,12 +62,12 @@ python run.py --refresh
 These are planned and will exist once the export stage is built (Phase 5):
 
 - `output/leads.csv`: qualified leads, with columns locked to the Submission Workbook
-- `output/rejected.csv`: rejected candidates and the reason for each
 - `output/outreach/`: drafted messages
 - `output/run_report.md`: counts, mix, runtime, API calls, cost and errors (generated, do not edit)
 
 Already produced today:
 
+- `output/rejected.csv`: every rejected creator, with all its reasons (the first is the main one), its profile, website, country evidence URL and, for a merged duplicate, `duplicate_of`
 - `output/engine.db`: SQLite database. It holds:
   - the API cache and the API call log
   - `candidates` (discover)

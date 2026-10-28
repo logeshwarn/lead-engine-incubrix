@@ -30,6 +30,7 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-28 | Owner | Set the podcast size limit to 250,000 linked-YouTube subscribers, after reviewing the measured sizes | `config.yaml`, DECISIONS.md | not recorded |
 | 2026-10-28 | Owner | Committed the size limit (`c17a748`) and asked to continue with dedupe | dedupe built | not recorded |
 | 2026-10-28 | Owner | Committed dedupe (`255fe23`). Decided the caps behaviour: trim a country above 60%, then check; on a failed rule, finish the run but exit with an error | Recorded in DECISIONS.md; caps built | not recorded |
+| 2026-10-28 | Owner | Committed caps (`20e34cb`) and asked to finish Phase 2 | rejected.csv and the 20-row check done | not recorded |
 
 ## Pending (not done yet)
 

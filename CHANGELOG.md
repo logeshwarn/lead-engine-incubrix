@@ -2,6 +2,14 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: rejected.csv and the 20-row check (Phase 2 done)
+
+- Added `engine/export.py` with `write_rejected`: `<out>/rejected.csv` with every rejected creator and its reasons; a rejection without a reason fails the run. `run.py` writes it after caps.
+- `engine/verify.py`, fixes from the hand check: a "brought to you by" self-mention is not sponsorship; commercial links only from the creator's own texts; hosting platforms' social accounts are not contacts.
+- Tests: `tests/test_export.py` (2) and 9 new verify tests; 199 in total.
+- Real data: 42 final leads (US 25, GB 9, AU 3, CA 3, NZ 1, IE 1), all rules pass; rejected.csv has 3,257 rows.
+- Docs: WORKFLOW, DECISIONS, PHASES (Phase 2 done), README, and both records files.
+
 ## 2026-10-28: Stage 5, caps
 
 - Added `engine/caps.py`: `deduped` -> `capped` and `cap_checks`. A country above 60% is trimmed to 60% (lowest-ranked leads rejected with "cap: ..."), then every hard rule is checked: approved share, 3+ countries, largest country, English, segment.

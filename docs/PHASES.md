@@ -6,7 +6,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 |---|---|---|
 | 0 | Setup | done (2026-10-27) |
 | 1 | Discover and enrich | done (2026-10-28) |
-| 2 | Verify, dedupe, caps | in progress (verify built 2026-10-28) |
+| 2 | Verify, dedupe, caps | done (2026-10-28) |
 | 3 | Score and route | not started |
 | 4 | Outreach drafting | not started |
 | 5 | Scale, export, refresh | not started |
@@ -153,7 +153,20 @@ All 9 quotes were found word for word in the creator's own text. Hand check: 7 c
 
 **Caps built (2026-10-28):** on the 51 unique creators, US was 33 (65%); 6 US leads were trimmed, leaving **45 leads: US 27 (60%), GB 9, CA 4, AU 3, NZ 1, IE 1**. All 5 rules pass. The full cached run (all stages so far) took 375 s with no new API calls. Tests: `tests/test_caps.py` (9 tests: trim to 60%, trim order, untouched mix, too few countries, approved share, language and segment, rejected rows ignored, tables written).
 
-Still open in Phase 2: `rejected.csv` (the brief lists it here; WORKFLOW gives it to export) and the 20-row hand check of the final set.
+**`rejected.csv` built (2026-10-28)** in `engine/export.py` (the export stage, started early because the brief lists it in Phase 2): every rejected creator with all its reasons. Tests: `tests/test_export.py`.
+
+**20-row hand check of the final set (2026-10-28, Claude Code, on the engine's stored evidence; random sample, seed 20: 12 qualified, 8 rejected):**
+- All 8 rejected rows were rejected for the right reasons (country not stated, "News" in name, no offer, no contact).
+- Of the 12 qualified, 7 were right with correct evidence on every check (Dr. Jockers, Heart Led Wellness, Easy Double, Dave Smith Dharma, Empowered Relationship, Weightless, Wildly Strong).
+- 3 rested on wrong evidence, all fixed with rules and tests:
+  - OT Coaching Confidential and The Hypnotist: "Sponsorship" was "Brought to you by [the host's own business]". Now ignored; both still qualify on their real offers ("one-on-one mentoring", "Book a consultation").
+  - Stassi J Unplugged: "Membership" was another creator's Patreon in an episode note, and its X/LinkedIn/Instagram "contacts" were rss.com's own accounts. Now rejected (no offer of its own).
+- 1 known LLM miss: Oncology Today is a medical-education company (Research To Practice) that Gemini called a creator. Left as is; the owner's 40-lead audit in Phase 7 measures how often this happens.
+- 1 unconfirmed: Good Areas (Jarrod Kimber), country GB from "live in South London" on the show's website; the stored text does not show whose sentence it is.
+
+**After the fixes**, the run from verify gives: 49 qualified, 49 unique after dedupe (Dr. John Campbell's re-upload feed now fails at verify: its only offer was a link in an episode note), **42 after caps: US 25 (60%), GB 9, AU 3, CA 3, NZ 1, IE 1**. All rules pass. rejected.csv: 3,257 rows. No new API calls (all Gemini answers came from the cache).
+
+**Phase 2 is done:** tests pass for the activity rule, dedupe, caps and missing evidence, and the 20-row check found 3 rule bugs, now fixed.
 
 Open questions for later phases:
 - Phase 3: trim by score instead of recency once score exists (see DECISIONS.md).

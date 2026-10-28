@@ -174,6 +174,17 @@ GUEST_PITCH = re.compile(r"((apply|want|interested in being|would like) to be (a
 
 # Only links shaped like a profile count; share buttons (twitter.com/intent/...) and articles
 # (linkedin.com/pulse/...) are not a way to reach someone.
+# Hosting platforms put their own social accounts in the footer of every show page they host.
+HOSTING_BRANDS = {d.split(".")[0] for d in NOT_CREATOR_EMAIL_DOMAINS}
+HOSTING_HANDLE = re.compile(rf"^({'|'.join(sorted(HOSTING_BRANDS))})(com|fm|app|hq|podcast|podcasts|podcasting)?$")
+
+
+def platform_account(url):
+    """True for a social profile that is a hosting platform's own, e.g. x.com/rss or instagram.com/rss_podcasting."""
+    handle = re.sub(r"^https?://[^/]+/(in/|company/|@)?", "", url).split("/")[0].split("?")[0]
+    return bool(HOSTING_HANDLE.match(compact(handle)))
+
+
 SOCIAL_PROFILE = [
     ("LinkedIn", re.compile(r"^https?://([\w-]+\.)?linkedin\.com/(in|company)/[^/?#]+/?([?#].*)?$", re.I)),
     ("Instagram", re.compile(r"^https?://(www\.)?instagram\.com/(?!p/|reel/|explore/|stories/)[\w.]+/?([?#].*)?$",
@@ -335,13 +346,35 @@ def activity(items, config):
     return passed, len(recent), len(long_form)
 
 
+def compact(text):
+    """Lower-case letters and digits only, so "The OT Coach" and theotcoach.au can be compared."""
+    return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
+def self_mention(profile, text, end):
+    """True when the words after "brought to you by" name the show or its own website.
+
+    "Brought to you by Alyce Svensk at The OT Coach Australia" on theotcoach.au is the creator
+    promoting themselves, not a sponsor (hand check 2026-10-28).
+    """
+    after = compact(text[end : end + 100])
+    site = compact(DOMAINS(profile["website"] or "").domain)
+    name = compact(profile["name"])
+    return (len(site) >= 4 and site in after) or (len(name) >= 4 and name in after)
+
+
 def find_commercial(profile, items, width):
     for text, url in texts(profile, items):
         for kind, pattern in COMMERCIAL:
-            m = pattern.search(text)
-            if m:
+            for m in pattern.finditer(text):
+                if "brought to you by" in m.group(0).lower() and self_mention(profile, text, m.end()):
+                    continue
                 return kind, quote(text, m.start(), m.end(), width), url
+    own_urls = {u for _, u in own_texts(profile)} | {p["url"] for p in json.loads(profile["pages"] or "[]")}
+    own_urls.add(profile["website"])
     for link in json.loads(profile["links"] or "[]"):
+        if link["source_url"] not in own_urls:
+            continue  # a Patreon link in show notes is often a guest's or a friend's (hand check 2026-10-28)
         kind = COMMERCIAL_DOMAINS.get(registered_domain(link["url"]))
         if kind:
             return kind, f"Link to {link['url']}", link["source_url"]
@@ -440,7 +473,7 @@ def find_contacts(profile, items, config):
         if link["source_url"] not in own_by_url:
             continue  # social links in show notes are usually the guest's
         channel = next((name for name, pattern in SOCIAL_PROFILE if pattern.match(link["url"])), None)
-        if channel:
+        if channel and not platform_account(link["url"]):
             contacts.append({"channel": channel, "value": link["url"], "evidence_url": link["source_url"],
                              "note": "linked by the creator; activity not checked (platform not read)"})  # fmt: skip
     seen, unique = set(), []

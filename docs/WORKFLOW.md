@@ -14,7 +14,7 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 6 | score | `engine/score.py` | capped | score from 0 to 100; top 25 flagged Priority A | not built |
 | 7 | route | `engine/route.py` | scored | best channel and backup channel | not built |
 | 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
-| 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | not built |
+| 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | `rejected.csv` built (Phase 2); the rest in Phase 5 |
 
 Shared helpers live in `engine/common.py`:
 - config loading and one log file per run
@@ -167,6 +167,10 @@ Input: the `deduped` table. Output: the `capped` table (same columns) and the `c
 2. **Check.** Every hard constraint is checked on the qualified set and written to `cap_checks`: approved-country share >= 80%, at least 3 countries, largest country <= 60%, all leads mainly English, all in an approved segment.
 3. **Fail loudly.** A failed rule is logged as `CAP RULE FAILED`. The later stages still run so the output can be inspected, but `run.py` ends with `RUN FAILED` and exit code 2, and the set is not valid for submission.
 
+## Stage 9: export (rejected.csv so far)
+
+`export.write_rejected` reads `capped` and writes every Rejected row to `<out>/rejected.csv` with `REJECTED_COLUMNS`: platform, platform ID, name, profile URL, website, segment, niche, seed, country and its evidence URL, `rejection_reason` (all reasons, separated by semicolons; the first is the main one), `duplicate_of` and `checked_date`. The workbook has no tab for rejects, so these columns are the engine's own. A rejected row without a reason stops the run with an error, because nothing may be dropped silently. `leads.csv`, `outreach/` and `run_report.md` come in Phase 5.
+
 ## Output format (`leads.csv`)
 
 `leads.csv` holds **qualified creators only**. Rejected creators go to `rejected.csv` with a reason. The 30 columns are locked to Submission Workbook tab `02_LEADS`, in workbook order, as `LEADS_COLUMNS` in `engine/common.py`. Allowed values:
@@ -197,6 +201,8 @@ Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer
 3. **Commercial**
    - Public sponsorship, product, service, course, membership, subscription or affiliate evidence.
    - The evidence is a verbatim quote plus its URL.
+   - "Brought to you by" followed by the show's own name or website is the creator promoting themselves, not a sponsor, and does not count.
+   - A link to Patreon, Kajabi, Gumroad and similar counts only from the creator's own description or website, not from episode notes (often a guest's or a friend's).
 4. **Needs IncuBrix**
    - A need in content creation, repurposing, editing, captions, publishing, consistency, backlog or team workflow. Two kinds of evidence count, each with a link:
      - (a) an **observed gap** in their public content, for example no captions on recent videos, or long episodes with no Shorts or clips, or irregular gaps between uploads;
@@ -204,6 +210,7 @@ Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer
 5. **Reachable**
    - The channel is real, public, presented by the creator for business contact, and active in the last 60 days.
    - Never guessed. The YouTube "About" email is behind a captcha and is never used.
+   - A hosting platform's own social accounts (x.com/rss, instagram.com/rss_podcasting, linkedin.com/company/rsscom) sit in the footer of every hosted show page and are not the creator's.
 6. **Personalised and compliant**
    - The message cites a specific recent piece of content, names the sender and includes an opt-out.
    - It follows platform rules: LinkedIn, Instagram and X messages are drafts for a person to send by hand, with no bulk automation.

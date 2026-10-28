@@ -615,3 +615,47 @@ def test_unclear_country_quote_is_rejected(conn, cfg, fake_http):
     verify.run(conn, cfg)
     reason = verified(conn).loc["itunes:1", "rejection_reason"]
     assert reason == "country not evidenced: the quote is not shown to be about the host (LLM: unclear)"
+
+
+# ---------- 20-row hand check of the final set (2026-10-28) ----------
+
+
+@pytest.mark.parametrize(
+    "text,website,kind",
+    [
+        ("Brought to you by Alyce Svensk at The OT Coach Australia.", "https://www.theotcoach.au", None),
+        ("Brought to you by the hypnotherapist demanded by CEOs - Adam Cox.", "http://adamcox.co.uk", None),
+        ("This episode is brought to you by Athletic Greens.", "http://adamcox.co.uk", "Sponsorship"),
+    ],
+)
+def test_brought_to_you_by_the_show_itself_is_not_a_sponsor(text, website, kind):
+    p = profile(description=text, website=website, pages="[]", name="The Hypnotist")
+    assert verify.find_commercial(p, [item(3)], 160)[0] == kind
+
+
+def test_patreon_link_in_show_notes_is_not_the_creators(cfg):
+    items = good_items()
+    items[0]["description"] = "Thanks to our friend Cubezella."
+    links = json.dumps([{"url": "https://www.patreon.com/Cubezella/posts/1", "source_url": items[0]["url"]}])
+    p = profile(description="Weekly interviews.", pages="[]", links=links)
+    assert verify.find_commercial(p, items, 160)[0] is None
+    own = json.dumps([{"url": "https://www.patreon.com/janedoe", "source_url": SITE}])
+    pages = json.dumps([{"url": SITE, "title": "", "text": "Hi"}])
+    assert verify.find_commercial(profile(description="", pages=pages, links=own), items, 160)[0] == "Membership"
+
+
+@pytest.mark.parametrize(
+    "url,kept",
+    [
+        ("https://twitter.com/rss", False),
+        ("https://www.linkedin.com/company/rsscom", False),
+        ("https://www.instagram.com/rss_podcasting/", False),
+        ("https://www.instagram.com/buzzsprout", False),
+        ("https://www.instagram.com/stassijsims/", True),
+    ],
+)
+def test_hosting_platform_accounts_are_not_contacts(cfg, url, kept):
+    pages = json.dumps([{"url": SITE, "title": "", "text": "Hi"}])
+    p = profile(emails="[]", pages=pages, links=json.dumps([{"url": url, "source_url": SITE}]))
+    found = [c["value"] for c in verify.find_contacts(p, good_items(), cfg)]
+    assert (url in found) == kept
