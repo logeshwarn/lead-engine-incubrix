@@ -114,3 +114,23 @@ def test_parallel_map_keeps_order_and_uses_own_connections(conn):
 
     assert parallel_map(conn, 4, work, list(range(20))) == [n * 2 for n in range(20)]
     assert conn not in seen  # the main connection is never shared with a thread
+
+
+def test_merge_cache_copies_new_and_newer_responses(tmp_path):
+    from engine.common import connect_db, merge_cache
+
+    main, other = connect_db(tmp_path / "main"), connect_db(tmp_path / "other")
+    main.execute("INSERT INTO api_cache VALUES ('k1', 's', '\"old\"', '2026-10-01T00:00:00')")
+    main.execute("INSERT INTO api_cache VALUES ('k2', 's', '\"keep\"', '2026-10-05T00:00:00')")
+    other.execute("INSERT INTO api_cache VALUES ('k1', 's', '\"new\"', '2026-10-02T00:00:00')")
+    other.execute("INSERT INTO api_cache VALUES ('k2', 's', '\"stale\"', '2026-10-03T00:00:00')")
+    other.execute("INSERT INTO api_cache VALUES ('k3', 's', '\"only other\"', '2026-10-02T00:00:00')")
+    for db in (main, other):  # a shared log row from the common copy, and one row only the other run has
+        db.execute("INSERT INTO api_log VALUES ('2026-10-01', 's', 0, 1, '')")
+    other.execute("INSERT INTO api_log VALUES ('2026-10-02', 's', 0, 1, '')")
+    other.commit()
+    main.commit()
+    assert merge_cache(main, tmp_path / "other" / "engine.db") == 1
+    got = dict(main.execute("SELECT cache_key, response FROM api_cache").fetchall())
+    assert got == {"k1": '"new"', "k2": '"keep"', "k3": '"only other"'}
+    assert main.execute("SELECT COUNT(*) FROM api_log").fetchone()[0] == 2

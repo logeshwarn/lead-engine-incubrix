@@ -273,3 +273,26 @@ def test_own_website_blank_rather_than_guessed():
         {"url": "https://chanshow.com", "source_url": "https://www.youtube.com/watch?v=1"},  # video, not channel
     ]
     assert enrich.own_website(links, row, []) is None
+
+
+# ---- fetch shards (2026-10-28) ----
+
+
+def test_shards_split_every_id_exactly_once():
+    ids = [f"itunes:{i}" for i in range(500)] + ["UC_OK", "podcastindex:7"]
+    shards = [{p for p in ids if enrich.in_shard(p, (k, 4))} for k in range(1, 5)]
+    assert sum(len(s) for s in shards) == len(ids) and set().union(*shards) == set(ids)
+    assert all(len(s) > 50 for s in shards)  # the hash spreads the work
+
+
+def test_shard_run_fills_the_cache_and_writes_no_tables(conn, config, fake_http, candidates):
+    fake = fake_http(respond)
+    for k in (1, 2):
+        assert enrich.run(conn, config, shard=(k, 2)) == (None, None)
+    assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'profiles'").fetchone() is None
+    assert not [c for c in fake.calls if "googleapis" in c["url"]]  # shards leave YouTube to the full run
+    fetched = len(fake.calls)
+    enrich.run(conn, config)  # the full run after both shards: every podcast comes from the cache
+    by_shards = {c["url"] for c in fake.calls[:fetched]}
+    assert "https://feed/x" in by_shards and len(profiles_by_id(conn)) == 6
+    assert not by_shards & {c["url"] for c in fake.calls[fetched:]}  # nothing a shard fetched is fetched again

@@ -35,6 +35,7 @@ REQUIRED_SECTIONS = [
     "reachable",
     "evidence",
     "score",
+    "draft",
     "priority_a",
     "targets",
 ]
@@ -141,6 +142,29 @@ def connect_db(out_dir):
     conn.execute("CREATE TABLE IF NOT EXISTS api_log (at TEXT, source TEXT, cached INTEGER, ok INTEGER, detail TEXT)")
     conn.commit()
     return conn
+
+
+def merge_cache(conn, other_db):
+    """Copy another run's cached responses and call log into this database. Returns rows merged.
+
+    Two runs fetching at the same time must use separate folders, because every stage replaces its
+    table. Merging their caches afterwards lets one final run reuse both without fetching twice.
+    For a request both runs made, the newer response wins.
+    """
+    conn.execute("ATTACH DATABASE ? AS other", (str(other_db),))
+    try:
+        before = conn.execute("SELECT COUNT(*) FROM api_cache").fetchone()[0]
+        conn.execute(
+            "INSERT INTO api_cache SELECT * FROM other.api_cache WHERE true ON CONFLICT(cache_key) DO UPDATE SET "
+            "source = excluded.source, response = excluded.response, fetched_at = excluded.fetched_at "
+            "WHERE excluded.fetched_at > api_cache.fetched_at"
+        )
+        # Rows both logs share (from the copy each run started from) are not counted twice.
+        conn.execute("INSERT INTO api_log SELECT * FROM other.api_log EXCEPT SELECT * FROM api_log")
+        conn.commit()
+        return conn.execute("SELECT COUNT(*) FROM api_cache").fetchone()[0] - before
+    finally:
+        conn.execute("DETACH DATABASE other")
 
 
 class ApiError(Exception):

@@ -669,3 +669,40 @@ def test_single_contact_fails_reachable_for_lack_of_a_backup(cfg):
     row = run_one(cfg, p)
     assert row["check_reachable"] is False
     assert "no backup channel (only Email hello@janedoeshow.com)" in row["rejection_reason"]
+
+
+# ---------- country from the creator's linked YouTube channel (2026-10-28) ----------
+
+YT_LINK = json.dumps([{"url": "https://www.youtube.com/@JaneDoe", "source_url": SITE}])
+
+
+def channel_with_country(country):
+    snippet = {"title": "Jane Doe", **({"country": country} if country else {})}
+    return FakeResponse(200, {"items": [{"snippet": snippet, "statistics": {"subscriberCount": "1200"}}]})
+
+
+@pytest.mark.parametrize("country,status,reason", [("GB", "Qualified", None),
+                                                   ("ZA", "Rejected", "country ZA not approved"),
+                                                   (None, "Rejected", "country not evidenced")])  # fmt: skip
+def test_linked_channel_country(conn, cfg, fake_http, monkeypatch, country, status, reason):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "yt")
+    reply = {**CREATOR, "quote": "Weekly interviews."}
+    fake_http(lambda url, params: channel_with_country(country) if "youtube" in url else gemini_reply(reply))
+    load(conn, [profile(description="Weekly interviews.", website="https://janedoe.com", links=YT_LINK)])
+    verify.run(conn, cfg)
+    v = verified(conn).loc["itunes:1"]
+    assert v.candidate_status == status and (
+        v.rejection_reason == reason or (reason is None and v.rejection_reason is None)
+    )
+    if country == "GB":
+        assert v.country_evidence == "Channel country (linked YouTube channel Jane Doe): GB"
+        assert v.country_evidence_url == "https://www.youtube.com/@JaneDoe"
+
+
+def test_linked_country_only_asked_when_country_is_the_only_failure(conn, cfg, fake_http, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "yt")
+    fake = fake_http(lambda url, params: channel_with_country("US"))
+    p = profile(description="Weekly interviews.", website="https://janedoe.com", links=YT_LINK, emails="[]", pages="[]")
+    load(conn, [p])  # no contact either: two failures, so no YouTube call
+    verify.run(conn, cfg)
+    assert fake.calls == []

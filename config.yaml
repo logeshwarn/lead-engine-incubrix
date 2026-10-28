@@ -13,6 +13,7 @@ cache:
   search_max_age_days: 7      # discovery searches are reused for a week, so a weekly rerun finds new creators
   enrich_max_age_days: 7      # profiles, uploads, feeds and pages: a weekly rerun sees fresh activity
   failure_max_age_days: 1     # a feed or website that failed is not retried for a day (APIs are always retried)
+  refresh_max_age_days: 1     # --refresh: re-fetch anything cached more than 1 day ago (all evidence re-checked)
 
 enrich:
   recent_days: 60             # item details (duration, captions) are kept for this window: the longest activity rule
@@ -22,7 +23,7 @@ enrich:
   website_pages: [contact, about]   # besides the homepage, follow the first same-site link containing each word
   website_text_chars: 20000   # page text kept per page
   max_links: 200              # links kept per creator
-  workers: 8                  # feeds and websites fetched at once (different hosts; robots.txt still checked per site)
+  workers: 24                 # feeds and websites fetched at once (different hosts; robots.txt still checked per site)
   # Never fetched: big platforms whose terms forbid scraping, and sites that are not the creator's own.
   # Their links are still recorded (e.g. an Instagram handle is a contact option).
   skip_domains: [youtube.com, youtu.be, instagram.com, facebook.com, x.com, twitter.com, tiktok.com,
@@ -37,13 +38,31 @@ discover:
   itunes_limit: 50            # per store per term
   itunes_stores: [US]         # 2026-10-27 test: all 7 approved-country stores returned the same 38 shows (DECISIONS.md)
   itunes_pause_seconds: 3     # Apple allows roughly 20 calls a minute; only applied to uncached calls
+  # apple_chart seeds (2026-10-28, deadline plan): Apple's top-200 chart per genre in each non-US approved
+  # store. The store only steers discovery towards local creators; it is never country evidence.
+  chart_stores: [GB, AU, CA, IE, NZ, SG]
+  apple_genres:               # Apple's podcast genre IDs
+    Business: 1321
+    Health & Fitness: 1512
+    Education: 1304
+    Society & Culture: 1324
+    Arts: 1301
+    Technology: 1318
+    Science: 1533
+    Leisure: 1502
+    Religion & Spirituality: 1314
+    Comedy: 1303
+    History: 1487
+    TV & Film: 1309
+    Sports: 1545
+    True Crime: 1488
 
 segments:                     # approved segments, spelled exactly as the Submission Workbook dropdown
   - Podcaster/Video Podcaster
   - YouTuber/Video-First Creator
   - Expert-Led Creator
 
-discovery_platforms: [youtube, podcast, podcast_category]  # podcast_category: keywords are Podcast Index category names
+discovery_platforms: [youtube, podcast, podcast_category, apple_chart]  # podcast_category: Podcast Index category names; apple_chart: Apple genre names
 
 countries:
   approved: [US, CA, GB, IE, AU, NZ, SG]  # ISO 3166 codes as in the workbook; the brief's "UK" is GB
@@ -130,6 +149,22 @@ score:                        # owner's choice 2026-10-28 ("Balanced"); reasons 
     domain_only: 6            # only the website's country domain
   priority_b_min_score: 50    # outside the top 25 (Priority A): 50+ is B, below is C
 
+draft:                        # message wording; templates are in engine/draft.py
+  # What IncuBrix does, worded only from the assignment's own need list (editing, captions,
+  # repurposing). No product claims beyond that: the owner can change this line.
+  pitch: "IncuBrix helps creators with editing, captions and repurposing, so one long recording can also become a transcript, short clips and posts."
+  call_to_action: "Would a 15-minute chat be worth it, to see whether it fits how you work today?"
+  follow_up_offer: "If a call is too much, a one-line reply on how you handle this today would already help."
+  follow_up_days: [4, 9]      # Priority A: follow-up 1 on day 4 (same channel), follow-up 2 on day 9 (backup channel)
+  title_chars: 70             # recent item titles are shortened to this in emails and forms
+  dm_title_chars: 40          # and to this in social messages
+  max_chars:                  # length check per channel
+    default: 1500             # email, contact form, guest-pitch page
+    LinkedIn: 300             # LinkedIn's limit for a connection-request note
+    Instagram: 1000
+    X: 1000
+    TikTok: 1000
+
 sender:                       # used by draft (Phase 4); must not claim to be IncuBrix staff (assignment section 8)
   name: Logeshwaran
   description: final year IT student at TCE
@@ -145,3 +180,6 @@ llm:
   pause_seconds: 4            # after each uncached call: about 15 requests a minute
   cache_days: 30              # same prompt, same answer: reuse it as long as evidence stays valid
   max_input_chars: 6000       # text sent per creator (description + website), to keep prompts small
+
+seed_test:                    # seedtest.py (Phase 6): owner's own test accounts only (.env SEED_*)
+  minutes_per_day: 2          # one sequence day = 2 minutes, so day-4 and day-9 follow-ups arrive the same evening

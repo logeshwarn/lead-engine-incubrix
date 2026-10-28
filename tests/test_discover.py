@@ -202,3 +202,39 @@ def test_drop_inactive_never_touches_youtube():
     df = pd.DataFrame([{"platform": "youtube", "newest_item_at": old}, {"platform": "podcast", "newest_item_at": old}])
     kept, dropped = discover.drop_inactive(df, 60)
     assert list(kept["platform"]) == ["youtube"] and dropped == 1
+
+
+# ---------- Apple charts per non-US store (2026-10-28) ----------
+
+CHART_BODY = {"feed": {"entry": [{"id": {"attributes": {"im:id": "111"}}}, {"id": {"attributes": {"im:id": "222"}}}]}}
+LOOKUP_BODY = {
+    "results": [
+        {"collectionId": 111, "collectionName": "UK Coach Show", "collectionViewUrl": "https://apple/111",
+         "feedUrl": "https://feed/111", "releaseDate": pd.Timestamp.now(tz="UTC").isoformat()},
+        {"collectionId": 222, "collectionName": "Old Show", "collectionViewUrl": "https://apple/222",
+         "feedUrl": "https://feed/222", "releaseDate": "2020-01-01T00:00:00Z"},
+    ]
+}  # fmt: skip
+
+
+@pytest.fixture
+def chart_seeds(tmp_path):
+    cols = ["seed_id", "segment", "niche", "primary_platform", "discovery_keywords", "need_signal_to_check",
+            "size_min", "size_max", "status"]  # fmt: skip
+    path = tmp_path / "chart_seeds.csv"
+    pd.DataFrame([["A1", "Podcaster/Video Podcaster", "chart_health", "apple_chart", "Health & Fitness", "x", None,
+                   None, "active"]], columns=cols).to_csv(path, index=False)  # fmt: skip
+    return path
+
+
+def test_apple_chart_seed_reads_each_store_and_drops_inactive(conn, config, fake_http, chart_seeds):
+    config["discover"]["chart_stores"] = ["GB", "AU"]
+    fake = fake_http(lambda url, params: FakeResponse(200, CHART_BODY if "toppodcasts" in url else LOOKUP_BODY))
+    c = discover.run(conn, config, chart_seeds)
+    charts = [call["url"] for call in fake.calls if "toppodcasts" in call["url"]]
+    assert charts == [
+        "https://itunes.apple.com/gb/rss/toppodcasts/limit=200/genre=1512/json",
+        "https://itunes.apple.com/au/rss/toppodcasts/limit=200/genre=1512/json",
+    ]
+    assert c["platform_id"].tolist() == ["itunes:111"]  # one row though it charts in both stores; 222 is inactive
+    assert c.iloc[0]["source"] == "apple_chart" and c.iloc[0]["itunes_store_country"] == "GB"

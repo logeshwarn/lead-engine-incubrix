@@ -20,7 +20,7 @@ Update this file when a library, API or data store changes. "Used by" lists only
 | robots.txt | `urllib.robotparser` | stdlib | `engine/enrich.py`: every website page is checked before fetching |
 | Language detection | langdetect | 1.0.9 | `engine/verify.py`: share of recent items detected as English (fixed seed, so reruns match) |
 | Domain normalisation | tldextract | 5.4.0 | `engine/verify.py`: email domain vs website domain, country domains; `engine/dedupe.py`: website domain as a dedupe key. Uses the bundled suffix list (`suffix_list_urls=()`), so no network call |
-| Email seed test | `smtplib`, `imaplib` | stdlib | seed test *(planned)*: test accounts only |
+| Email seed test | `smtplib`, `imaplib`, `http.server` | stdlib | `seedtest.py`: test accounts only (details below) |
 
 ## APIs
 
@@ -35,6 +35,8 @@ Access to all three keyed APIs was confirmed on 2026-10-27 with `python check_ap
 | Podcast Index API | `search/byterm` | find podcasts per keyword | free tier | `PODCASTINDEX_API_KEY`, `PODCASTINDEX_API_SECRET` | `engine/discover.py`, `check_apis.py` |
 | Podcast RSS feeds | the show's own feed URL | enrich: episodes and the owner email | free; one GET per feed, cached 7 days | none | `engine/enrich.py` |
 | Creator websites | homepage + contact + about page | enrich: page text, emails, links | free; up to 3 pages + `robots.txt` per site, cached 7 days. User-Agent `IncuBrixLeadEngine/0.1` | none | `engine/enrich.py` |
+| Apple podcast charts (legacy RSS) | `itunes.apple.com/{store}/rss/toppodcasts/limit=200/genre={id}/json` | discover: top-200 shows per genre in each non-US store (`apple_chart` seeds) | free, no key; 3 s pause after each uncached call; cached 7 days | none | `engine/discover.py` |
+| iTunes Lookup API | `/lookup?id=...&entity=podcast` (100 IDs per call) | discover: feed URL and latest-episode date for each chart show | free, no key; same pause and cache | none | `engine/discover.py` |
 | iTunes Search API | `/search?media=podcast` | find podcasts per keyword | free, no key. Apple allows roughly 20 calls a minute, so there is a 3 s pause after each uncached call | none | `engine/discover.py` |
 | Google Gemini API (AI Studio key), model `gemini-3.5-flash-lite` (`llm.model`) | `models` list (access check); `generateContent` with a JSON schema | verify: creator vs organisation, quote-checked; drafting *(planned)* | **free tier.** Measured 2026-10-28: 9 calls, 13,818 tokens (about 1,500 per creator), $0. Each uncached call is followed by a 4 s pause (about 15 a minute). Answers cached 30 days. Key sent in the `x-goog-api-key` header, never in the URL. A stronger model would classify better (see DECISIONS.md) | `LLM_API_KEY` | `engine/common.py` (`gemini_json`), `engine/verify.py`, `check_apis.py` |
 
@@ -56,3 +58,12 @@ All data is inside the `--out` folder (default `output/`, ignored by git). The d
 | SQLite table `content_items` | `<out>/engine.db` | enrich output: uploads and episodes from the last 60 days |
 | SQLite table `verified` | `<out>/engine.db` | verify output: one row per profile with each check, its evidence quote and URL, contacts (JSON), Qualified or Rejected and the reasons |
 | Log files | `<out>/logs/run_YYYYMMDD_HHMMSS.log` | one file per run |
+
+## Seed test (`seedtest.py`)
+
+| Purpose | Library or service | Notes |
+|---|---|---|
+| Send test emails | `smtplib` (stdlib), Gmail SMTP with an App Password | only to `SEED_TO_EMAIL`; credentials in `.env` |
+| Log replies | `imaplib`, `email` (stdlib), Gmail IMAP | read-only (`BODY.PEEK`), last 2 days |
+| Tracked links | `http.server` (stdlib) on `localhost:8765` | logs each click to `seed_events`, then redirects to incubrix.com |
+| LinkedIn, Instagram | none: sent by hand | platform rules forbid automated messages; logged with `seedtest.py mark` |

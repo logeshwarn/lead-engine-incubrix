@@ -8,10 +8,10 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | 1 | Discover and enrich | done (2026-10-28) |
 | 2 | Verify, dedupe, caps | done (2026-10-28) |
 | 3 | Score and route | done (2026-10-28) |
-| 4 | Outreach drafting | not started |
-| 5 | Scale, export, refresh | not started |
-| 6 | Seed test | not started |
-| 7 | Hardening and handover | not started |
+| 4 | Outreach drafting | done (2026-10-28) |
+| 5 | Scale, export, refresh | in progress (export and refresh built 2026-10-28; full run going) |
+| 6 | Seed test | in progress (seedtest.py built 2026-10-28; waiting for the owner's test accounts) |
+| 7 | Hardening and handover | in progress (launch kit and workbook text drafted 2026-10-28; final-run numbers and owner fields pending) |
 
 ## Phase 0: Setup
 
@@ -192,5 +192,31 @@ Done when every lead has a best channel, a backup channel and a score, and weigh
 
 **Phase 3 is done:** every lead has a best channel, a backup channel and a score, and the weights are in DECISIONS.md.
 
+## Phase 4: Outreach drafting
+
+Done when every Priority A lead has a complete sequence that passes the checks.
+
+| Module | Status |
+|---|---|
+| `engine/draft.py` | done (2026-10-28) |
+
+**Built (2026-10-28):** templates for 3 segments x 3 channel types (email, form/guest-pitch page, social message), filled only with verified facts; first message for every lead, + 2 follow-ups for Priority A (day 4 same channel, day 9 backup channel); automatic checks for content reference, sender, opt-out, length, no employee claim and no unfilled placeholder. On the 40 leads of the 2-category set: 40 first messages and 25 full Priority A sequences, **all passing every check**; the longest first message is 707 characters. Tests: `tests/test_draft.py` (9).
+
+**Phase 4 is done.**
+
+## Phase 5: Scale, export, refresh
+
+Done when a rerun produces 0% duplicates and an accurate run report.
+
+| Part | Status |
+|---|---|
+| `engine/export.py`: leads.csv, outreach/, run_report.md | done (2026-10-28) |
+| `--refresh`, resume, `--merge-cache` | done (2026-10-28) |
+| Volume: linked-YouTube country, Apple charts, parallel YouTube enrich | done (2026-10-28) |
+| Full run on all 72 seeds (`output/full/`) | running (started 2026-10-28 21:35, restarted 21:44 with parallel YouTube) |
+| Runtime, API calls, tokens and cost for 1,000 rows | after the full run |
+
+Full run so far: discover found **17,565 candidates (13,634 podcasts, 3,931 YouTube channels)** from the first 58 seeds, before the Apple chart seeds were added.
+
 Open questions for later phases:
-- Phase 4: drafting needs the LLM again; Priority A sequences use the A list above.
+- Phase 4: Gemini could rewrite the 25 Priority A sequences for more persuasion, if time and quota allow.

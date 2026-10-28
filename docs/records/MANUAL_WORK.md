@@ -33,6 +33,8 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-28 | Owner | Committed caps (`20e34cb`) and asked to finish Phase 2 | rejected.csv and the 20-row check done | not recorded |
 | 2026-10-28 | Owner | Committed Phase 2 (`796b3cb`). Chose the scoring weights ("Balanced", from 3 options) and the B/C rule (score 50+ is B) | Recorded in config.yaml and DECISIONS.md; score built | not recorded |
 | 2026-10-28 | Owner | Committed score (`41e2bda`) and asked to continue with route | route built; Phase 3 done | not recorded |
+| 2026-10-28 | Owner | Committed route (`98fe387`). Set the deadline: 1,000 leads by Saturday 31 Oct. Chose the compromises (honest count if short, templated messages for B leads, simpler seed test) and said "we will continue development and also fetching now! no stopping" | Full run started 21:35 in `output/full/`; development continued in parallel | not recorded |
+| 2026-10-28 | Owner | Chose the seed-test accounts and channels: two Gmail accounts, LinkedIn and Instagram | `seedtest.py` built for them | not recorded |
 
 ## Pending (not done yet)
 

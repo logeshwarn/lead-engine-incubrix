@@ -399,14 +399,20 @@ def find_need(profile, items, config):
     if len(items) >= v["caption_gap_min_items"] and len(known) == len(items) and not any(known):
         what = "videos have creator-uploaded captions" if youtube else "episodes have a transcript"
         summary = f"Captions: none of the last {len(items)} {what}"
-        return "captions", summary, f"{summary} (latest: {latest['title']})", latest["url"]
+        # Episodes without their own page are listed on the show page, so that is the link to cite.
+        return "captions", summary, f"{summary} (latest: {latest['title']})", latest["url"] or profile["profile_url"]
     long_items = [
         it for it in items if (it["duration_seconds"] or 0) >= config["activity"]["long_form_min_minutes"] * 60
     ]
     if len(long_items) >= v["repurpose_min_long_items"]:
         if youtube and not any((it["duration_seconds"] or 0) <= v["short_max_seconds"] for it in items):
             summary = f"Repurposing: {len(long_items)} long videos and no Shorts in the last 60 days"
-            return "repurposing", summary, f"{summary} (latest: {latest['title']})", latest["url"]
+            return (
+                "repurposing",
+                summary,
+                f"{summary} (latest: {latest['title']})",
+                latest["url"] or profile["profile_url"],
+            )
         has_video = any(
             registered_domain(lk["url"]) in ("youtube.com", "youtu.be", "tiktok.com")
             for lk in json.loads(profile["links"] or "[]")
@@ -414,7 +420,12 @@ def find_need(profile, items, config):
         # "No video presence" is only a fair claim when we actually read their website.
         if not youtube and not has_video and json.loads(profile["pages"] or "[]"):
             summary = f"Repurposing: {len(long_items)} long episodes and no YouTube or TikTok link on feed or site"
-            return "repurposing", summary, f"{summary} (latest: {latest['title']})", profile["website"] or latest["url"]
+            return (
+                "repurposing",
+                summary,
+                f"{summary} (latest: {latest['title']})",
+                profile["website"] or latest["url"] or profile["profile_url"],
+            )
     dates = sorted(it["published"] for it in items)
     gaps = [(b - a, b) for a, b in zip(dates, dates[1:], strict=False)]
     if len(dates) >= 4 and gaps:
@@ -422,7 +433,7 @@ def find_need(profile, items, config):
         if gap.days >= v["consistency_gap_days"]:
             item = next(it for it in items if it["published"] == after)
             summary = f"Consistency: {gap.days}-day gap between uploads before {after.date()}"
-            return "consistency", summary, f"{summary} ({item['title']})", item["url"]
+            return "consistency", summary, f"{summary} ({item['title']})", item["url"] or profile["profile_url"]
     return None, None, None, None
 
 
@@ -623,15 +634,14 @@ def linked_youtube_channel(profile):
     return None, None
 
 
-def check_podcast_size(conn, config, row, profile, api_key):
-    """Reject a podcast whose linked YouTube channel is above the size limit. Unknown size is no reason.
+def linked_channel_data(conn, config, row, profile, api_key):
+    """(channel, link) for the creator's linked YouTube channel, or (None, None). One cached call, 1 unit.
 
-    Podcast directories publish no audience count, so the creator's own YouTube channel (linked from
-    their description or website) is the only public size figure (hand check 2026-10-28).
+    The size check and the country check share this request, so a show costs at most one call.
     """
     params, link = linked_youtube_channel(profile)
     if params is None:
-        return
+        return None, None
     try:
         data, _ = cached_get(
             conn,
@@ -642,9 +652,52 @@ def check_podcast_size(conn, config, row, profile, api_key):
             config["cache"]["enrich_max_age_days"],
         )
     except ApiError as e:
-        log.error("size check %s: %s", row["platform_id"], e)
+        log.error("linked YouTube channel %s: %s", row["platform_id"], e)
+        return None, None
+    return (data.get("items") or [None])[0], link
+
+
+def check_linked_country(conn, config, row, profile, api_key):
+    """Give a podcast the country its own linked YouTube channel states, when nothing else showed one.
+
+    A YouTube channel's country is stated on the platform by its owner, the same evidence a YouTube
+    lead gets. Measured 2026-10-28: of 263 shows rejected only for country, 147 linked a channel and
+    104 of those state an approved country.
+    """
+    channel, link = linked_channel_data(conn, config, row, profile, api_key)
+    country = (channel or {}).get("snippet", {}).get("country")
+    if not country:
         return
-    channel = (data.get("items") or [None])[0]
+    title = channel["snippet"].get("title")
+    row.update(country_iso2=country, country_evidence=f"Channel country (linked YouTube channel {title}): {country}",
+               country_evidence_url=link)  # fmt: skip
+    if country in config["countries"]["approved"]:
+        row.update(candidate_status="Qualified", rejection_reason=None, check_real_relevant=True)
+    else:
+        row["rejection_reason"] = f"country {country} not approved"
+
+
+def apply_linked_country(conn, config, rows, profiles_by_id):
+    """Run check_linked_country on podcasts whose only failure is a missing country."""
+    todo = [r for r in rows if r["platform"] == "podcast" and r["rejection_reason"] == "country not evidenced"]
+    api_key = os.getenv("YOUTUBE_API_KEY", "")
+    if todo and not api_key:
+        log.error("YOUTUBE_API_KEY is empty: linked-channel country check skipped")
+        return
+    before = sum(r["candidate_status"] == "Qualified" for r in rows)
+    for row in todo:
+        check_linked_country(conn, config, row, profiles_by_id[row["platform_id"]], api_key)
+    gained = sum(r["candidate_status"] == "Qualified" for r in rows) - before
+    log.info("linked YouTube channel country: %d shows checked, %d now pass the country check", len(todo), gained)
+
+
+def check_podcast_size(conn, config, row, profile, api_key):
+    """Reject a podcast whose linked YouTube channel is above the size limit. Unknown size is no reason.
+
+    Podcast directories publish no audience count, so the creator's own YouTube channel (linked from
+    their description or website) is the only public size figure (hand check 2026-10-28).
+    """
+    channel, link = linked_channel_data(conn, config, row, profile, api_key)
     if channel is None or channel.get("statistics", {}).get("hiddenSubscriberCount"):
         return
     subs = int(channel["statistics"].get("subscriberCount", 0))
@@ -797,6 +850,7 @@ def run(conn, config):
     profile_rows = profiles.to_dict("records")
     rows = [verify_profile(p, by_creator.get(p["platform_id"], []), config) for p in profile_rows]
     by_id = {p["platform_id"]: p for p in profile_rows}
+    apply_linked_country(conn, config, rows, by_id)  # may turn "country not evidenced" into a pass
     apply_size_check(conn, config, rows, by_id)  # before the LLM, so a show that is too big costs no LLM call
     apply_creator_check(conn, config, rows, by_id)
     verified = pd.DataFrame(rows, columns=VERIFIED_COLUMNS)

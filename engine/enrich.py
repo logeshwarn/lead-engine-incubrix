@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import re
+import zlib
 from calendar import timegm
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin, urlparse
@@ -172,11 +173,109 @@ def size_problem(subscribers, size_min, size_max):
     return None
 
 
+def enrich_channel(conn, config, cand, ch, state, api_key):
+    """Profile and recent videos of one channel: 2 calls (uploads playlist, videos), 1 unit each.
+
+    Runs in parallel threads (enrich.workers); `state["quota_hit"]` is shared, so once the daily
+    quota is gone the remaining channels skip their calls. Returns (profile row, item rows).
+    """
+    cutoff = now_utc() - timedelta(days=config["enrich"]["recent_days"])
+    approved = set(config["countries"]["approved"])
+    items = []
+    row = base_profile(cand)
+    if ch is None:
+        missing = "failed: channel not returned by API"
+        row["enrich_status"] = "failed: quota used up" if state["quota_hit"] else missing
+        return row, []
+    sn, st = ch.get("snippet", {}), ch.get("statistics", {})
+    subs = None if st.get("hiddenSubscriberCount") else int(st.get("subscriberCount", 0))
+    handle = sn.get("customUrl")
+    row.update(
+        name=sn.get("title"),
+        handle=handle,
+        profile_url=f"https://www.youtube.com/{handle}" if handle else row["profile_url"],
+        description=sn.get("description"),
+        country=sn.get("country"),
+        language=sn.get("defaultLanguage"),
+        subscribers=subs,
+        total_items=int(st.get("videoCount", 0)),
+        created_at=sn.get("publishedAt"),
+    )
+    emails = find_emails(sn.get("description"), row["profile_url"])
+    links = find_links(sn.get("description"), row["profile_url"])
+
+    # Skip the per-channel calls when the channel cannot qualify anyway: saves quota for the rest.
+    skip = size_problem(subs, cand.get("size_min"), cand.get("size_max"))
+    if not skip and row["country"] and row["country"] not in approved:
+        skip = f"country {row['country']} not approved"
+    if not skip and row["total_items"] == 0:
+        skip = "no uploads"
+    if skip or state["quota_hit"]:
+        row["enrich_status"] = f"skipped: {skip}" if skip else "failed: quota used up"
+        row.update(emails=emails, links=links)
+        return row, []
+
+    status = []
+    try:
+        uploads = ch["contentDetails"]["relatedPlaylists"]["uploads"]
+        pl = _yt_get(
+            conn,
+            config,
+            "youtube.playlistItems",
+            YT_PLAYLIST_URL,
+            {"part": "contentDetails", "playlistId": uploads, "maxResults": config["enrich"]["youtube_uploads"]},
+            api_key,
+        )
+        uploads = [
+            (it["contentDetails"]["videoId"], it["contentDetails"].get("videoPublishedAt"))
+            for it in pl.get("items", [])
+        ]
+        dates = [parse_iso(d) for _, d in uploads if d]
+        row["last_content_at"] = max(dates).isoformat() if dates else None
+        recent = [vid for vid, d in uploads if d and parse_iso(d) >= cutoff]
+        if recent:
+            vids = _yt_get(
+                conn,
+                config,
+                "youtube.videos",
+                YT_VIDEOS_URL,
+                {"part": "snippet,contentDetails", "id": ",".join(recent[:50]), "maxResults": 50},
+                api_key,
+            )
+            for v in vids.get("items", []):
+                vurl = f"https://www.youtube.com/watch?v={v['id']}"
+                desc = v["snippet"].get("description", "")
+                items.append(
+                    {
+                        "platform": "youtube",
+                        "platform_id": cand["platform_id"],
+                        "item_id": v["id"],
+                        "title": v["snippet"].get("title"),
+                        "url": vurl,
+                        "published_at": v["snippet"].get("publishedAt"),
+                        "duration_seconds": iso_duration_seconds(v["contentDetails"].get("duration")),
+                        "has_captions": v["contentDetails"].get("caption") == "true",
+                        "description": desc[: config["enrich"]["item_text_chars"]],
+                    }
+                )
+                # Video descriptions often hold the sponsor links and "business inquiries" address.
+                emails += find_emails(desc, vurl)
+                links += find_links(desc, vurl)
+                row["language"] = row["language"] or v["snippet"].get("defaultAudioLanguage")
+    except ApiError as e:
+        status.append(f"uploads ({e.reason or e.status})")
+        log.error("youtube %s uploads: %s", cand["platform_id"], e)
+        if e.reason == "quotaExceeded":
+            state["quota_hit"] = True
+    row.update(emails=emails, links=links)
+    row["enrich_status"] = "partial: " + ", ".join(status) if status else "ok"
+    row["website"] = own_website(links, row, config["enrich"]["skip_domains"])
+    return row, items
+
+
 def enrich_youtube(conn, config, candidates, api_key):
     """Profiles and recent items for YouTube candidates. Costs about 2-3 quota units per channel."""
     profiles, items = [], []
-    cutoff = now_utc() - timedelta(days=config["enrich"]["recent_days"])
-    approved = set(config["countries"]["approved"])
     ids = sorted(candidates["platform_id"])  # sorted so batches (and their cache keys) are stable between runs
     channels, quota_hit = {}, False
     for i in range(0, len(ids), 50):  # channels.list takes up to 50 IDs for 1 unit
@@ -195,98 +294,18 @@ def enrich_youtube(conn, config, candidates, api_key):
             log.error("youtube channels batch %d: %s", i // 50, e)
             quota_hit = quota_hit or e.reason == "quotaExceeded"
 
-    for cand in candidates.to_dict("records"):
-        row = base_profile(cand)
-        ch = channels.get(cand["platform_id"])
-        if ch is None:
-            row["enrich_status"] = "failed: quota used up" if quota_hit else "failed: channel not returned by API"
-            profiles.append(row)
-            continue
-        sn, st = ch.get("snippet", {}), ch.get("statistics", {})
-        subs = None if st.get("hiddenSubscriberCount") else int(st.get("subscriberCount", 0))
-        handle = sn.get("customUrl")
-        row.update(
-            name=sn.get("title"),
-            handle=handle,
-            profile_url=f"https://www.youtube.com/{handle}" if handle else row["profile_url"],
-            description=sn.get("description"),
-            country=sn.get("country"),
-            language=sn.get("defaultLanguage"),
-            subscribers=subs,
-            total_items=int(st.get("videoCount", 0)),
-            created_at=sn.get("publishedAt"),
-        )
-        emails = find_emails(sn.get("description"), row["profile_url"])
-        links = find_links(sn.get("description"), row["profile_url"])
-
-        # Skip the per-channel calls when the channel cannot qualify anyway: saves quota for the rest.
-        skip = size_problem(subs, cand.get("size_min"), cand.get("size_max"))
-        if not skip and row["country"] and row["country"] not in approved:
-            skip = f"country {row['country']} not approved"
-        if not skip and row["total_items"] == 0:
-            skip = "no uploads"
-        if skip or quota_hit:
-            row["enrich_status"] = f"skipped: {skip}" if skip else "failed: quota used up"
-            row.update(emails=emails, links=links)
-            profiles.append(row)
-            continue
-
-        status = []
-        try:
-            uploads = ch["contentDetails"]["relatedPlaylists"]["uploads"]
-            pl = _yt_get(
-                conn,
-                config,
-                "youtube.playlistItems",
-                YT_PLAYLIST_URL,
-                {"part": "contentDetails", "playlistId": uploads, "maxResults": config["enrich"]["youtube_uploads"]},
-                api_key,
-            )
-            uploads = [
-                (it["contentDetails"]["videoId"], it["contentDetails"].get("videoPublishedAt"))
-                for it in pl.get("items", [])
-            ]
-            dates = [parse_iso(d) for _, d in uploads if d]
-            row["last_content_at"] = max(dates).isoformat() if dates else None
-            recent = [vid for vid, d in uploads if d and parse_iso(d) >= cutoff]
-            if recent:
-                vids = _yt_get(
-                    conn,
-                    config,
-                    "youtube.videos",
-                    YT_VIDEOS_URL,
-                    {"part": "snippet,contentDetails", "id": ",".join(recent[:50]), "maxResults": 50},
-                    api_key,
-                )
-                for v in vids.get("items", []):
-                    vurl = f"https://www.youtube.com/watch?v={v['id']}"
-                    desc = v["snippet"].get("description", "")
-                    items.append(
-                        {
-                            "platform": "youtube",
-                            "platform_id": cand["platform_id"],
-                            "item_id": v["id"],
-                            "title": v["snippet"].get("title"),
-                            "url": vurl,
-                            "published_at": v["snippet"].get("publishedAt"),
-                            "duration_seconds": iso_duration_seconds(v["contentDetails"].get("duration")),
-                            "has_captions": v["contentDetails"].get("caption") == "true",
-                            "description": desc[: config["enrich"]["item_text_chars"]],
-                        }
-                    )
-                    # Video descriptions often hold the sponsor links and "business inquiries" address.
-                    emails += find_emails(desc, vurl)
-                    links += find_links(desc, vurl)
-                    row["language"] = row["language"] or v["snippet"].get("defaultAudioLanguage")
-        except ApiError as e:
-            status.append(f"uploads ({e.reason or e.status})")
-            log.error("youtube %s uploads: %s", cand["platform_id"], e)
-            if e.reason == "quotaExceeded":
-                quota_hit = True
-        row.update(emails=emails, links=links)
-        row["enrich_status"] = "partial: " + ", ".join(status) if status else "ok"
-        row["website"] = own_website(links, row, config["enrich"]["skip_domains"])
+    # Each channel's 2 calls are independent, so they run in parallel like feeds and websites
+    # (2026-10-28: one at a time took about 1 s per call, over 2 hours for 3,931 channels).
+    state = {"quota_hit": quota_hit}
+    results = parallel_map(
+        conn,
+        config["enrich"]["workers"],
+        lambda c, cand: enrich_channel(c, config, cand, channels.get(cand["platform_id"]), state, api_key),
+        candidates.to_dict("records"),
+    )
+    for row, row_items in results:
         profiles.append(row)
+        items += row_items
     return profiles, items
 
 
@@ -564,13 +583,33 @@ def base_profile(cand):
     return row
 
 
-def run(conn, config):
+def in_shard(platform_id, shard):
+    """True when this creator belongs to shard (k, n): a stable hash, so every ID is in exactly one shard."""
+    k, n = shard
+    return zlib.crc32(str(platform_id).encode("utf-8")) % n == k - 1
+
+
+def run(conn, config, shard=None):
+    """Enrich every candidate and write the profiles and content_items tables.
+
+    With shard=(k, n) (`run.py --fetch-shard k/n`) it only fills the cache: it enriches the k-th of
+    n parts of the candidates, last first, and writes no tables. Several shard processes next to a
+    normal run share the cache, so the normal run then reads those creators from the cache.
+    """
     candidates = pd.read_sql("SELECT * FROM candidates", conn)
     # NaN is truthy, so a missing feed URL would look present: turn every missing value into None,
     # and loop over plain dicts below (pandas iterrows turns None back into NaN).
     candidates = candidates.astype(object).where(candidates.notna(), None)
+    if shard:
+        # Last first: a normal run goes first to last, so the two meet late and fetch little twice.
+        candidates = candidates[[in_shard(p, shard) for p in candidates["platform_id"]]].iloc[::-1]
+        log.info("fetch shard %d/%d: %d candidates", shard[0], shard[1], len(candidates))
     yt = candidates[candidates["platform"] == "youtube"]
     pods = candidates[candidates["platform"] == "podcast"]
+    if shard:
+        # YouTube is asked in batches of 50 channels, so a shard's batches would not match the full
+        # run's cache and would spend quota twice. YouTube is fast anyway: shards fetch podcasts only.
+        yt = yt.iloc[0:0]
 
     api_key = os.getenv("YOUTUBE_API_KEY", "")
     if api_key:
@@ -596,6 +635,9 @@ def run(conn, config):
         for col in ["emails", "links", "pages"]:
             row[col] = json.dumps(row[col])
 
+    if shard:
+        log.info("fetch shard %d/%d done: %d profiles cached", shard[0], shard[1], len(profiles))
+        return None, None
     profiles = pd.DataFrame(profiles, columns=PROFILE_COLUMNS)
     items = pd.DataFrame(yt_items + pod_items, columns=ITEM_COLUMNS)
     # Rebuilt from the cache every run, so replacing the tables keeps the stage rerunnable.

@@ -23,6 +23,11 @@ log = logging.getLogger("discover")
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 PODCASTINDEX_SEARCH_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
 ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
+# Apple's top-200 chart per genre and store, and the lookup that turns chart IDs into feeds.
+# A store's chart leans towards that country's listeners, so non-US stores find more non-US creators.
+# The store is never country evidence: verify still needs the creator's own statement.
+APPLE_CHART_URL = "https://itunes.apple.com/{store}/rss/toppodcasts/limit=200/genre={genre}/json"
+ITUNES_LOOKUP_URL = "https://itunes.apple.com/lookup"
 # Category lists of active shows, up to 1000 per call (keyword search stops at 60 results).
 PODCASTINDEX_CATEGORY_URLS = {
     "trending": "https://api.podcastindex.org/api/1.0/podcasts/trending",
@@ -201,6 +206,33 @@ def search_itunes(conn, config, keyword, country):
     return itunes_rows(data, country)
 
 
+def apple_pause(config, was_cached):
+    if not was_cached:
+        time.sleep(config["discover"]["itunes_pause_seconds"])  # stay under Apple's rate limit
+
+
+def search_apple_chart(conn, config, genre_name, store):
+    """Shows on Apple's top-200 chart for one genre in one store, as candidate rows."""
+    genre = config["discover"]["apple_genres"][genre_name]
+    url = APPLE_CHART_URL.format(store=store.lower(), genre=genre)
+    data, was_cached = cached_get(conn, "apple.chart", url, {}, config["http"], config["cache"]["search_max_age_days"])
+    apple_pause(config, was_cached)
+    entries = data.get("feed", {}).get("entry", [])
+    entries = [entries] if isinstance(entries, dict) else entries  # one entry comes back as a dict
+    ids = [e["id"]["attributes"]["im:id"] for e in entries if e.get("id", {}).get("attributes", {}).get("im:id")]
+    rows = []
+    for i in range(0, len(ids), 100):  # the lookup takes many IDs per call; 100 keeps the URL short
+        params = {"id": ",".join(ids[i : i + 100]), "entity": "podcast"}
+        found, was_cached = cached_get(
+            conn, "itunes.lookup", ITUNES_LOOKUP_URL, params, config["http"], config["cache"]["search_max_age_days"]
+        )
+        apple_pause(config, was_cached)
+        rows += itunes_rows(found, store)
+    for row in rows:
+        row["source"] = "apple_chart"
+    return rows
+
+
 def run(conn, config, seeds_path):
     """Search every active seed keyword and write the `candidates` table."""
     seeds = load_seeds(seeds_path)
@@ -247,6 +279,14 @@ def run(conn, config, seeds_path):
                     except ApiError as e:
                         failures += 1
                         log.error("seed %s category %r %s: %s", seed["seed_id"], keyword, list_name, e)
+            elif seed["primary_platform"] == "apple_chart":
+                # The keyword is an Apple genre name (discover.apple_genres); one chart per non-US store.
+                for store in config["discover"]["chart_stores"]:
+                    try:
+                        found += search_apple_chart(conn, config, keyword, store)
+                    except ApiError as e:
+                        failures += 1
+                        log.error("seed %s chart %r %s: %s", seed["seed_id"], keyword, store, e)
             for row in found:
                 row.update(
                     query=keyword,

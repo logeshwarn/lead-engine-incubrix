@@ -2,6 +2,38 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28 (night): fetch shards
+
+- `run.py --fetch-shard K/N` and `--workers N`; `enrich.in_shard`. 4 shards started next to wave 1 in `output/full/`.
+- Tests: 3 new (shard split, shard run fills the cache only, argument check); 248 in total.
+- Docs: README flags, WORKFLOW commands, DECISIONS.
+
+## 2026-10-28 (night): launch kit and workbook text (drafts)
+
+- Added `docs/LAUNCH_KIT.md`: 30-day plan with targets, channels, safe daily volume per channel, step-by-step owner actions, tools and cost, targets with labelled assumptions, risks, and what IncuBrix must provide.
+- Added `docs/WORKBOOK_TEXT.md`: draft text for workbook tabs 00, 03 and 04, with evidence paths. Final-run numbers and owner-only fields are marked.
+- README docs table lists both.
+
+## 2026-10-28 (night): seed test tool
+
+- Added `seedtest.py`: plan, send (SMTP), mark (hand-sent LinkedIn/Instagram), clicks (local tracker), replies (IMAP), report. Only the owner's `SEED_*` accounts can receive.
+- `.env.example`: `SEED_*` names (blank). `config.yaml`: `seed_test.minutes_per_day`.
+- Tests: `tests/test_seedtest.py` (5); 245 in total.
+- Docs: WORKFLOW, README, TECH_RUNTIME, DECISIONS, PHASES.
+
+## 2026-10-28 (night): deadline build, Phases 4 and 5
+
+- Added `engine/draft.py` (stage 8): templated, fact-only messages for every lead and full Priority A sequences, each checked (content reference, sender, opt-out, length, no employee claim, no placeholder).
+- `engine/export.py` (stage 9) now writes `leads.csv` (30 workbook columns), `outreach/` (sequences.csv, one file per lead, templates.md) and `run_report.md`, besides rejected.csv.
+- `engine/verify.py`: a podcast failing only on country can take its linked YouTube channel's stated country; the size and country checks share one cached call. Need evidence falls back to the show page when an episode has no page of its own.
+- `engine/discover.py`: `apple_chart` seeds (Apple's top-200 per genre in GB, AU, CA, IE, NZ, SG, then iTunes lookup).
+- `engine/enrich.py`: YouTube channels are enriched in parallel (`enrich_channel`); `enrich.workers` 24.
+- `run.py`: all 9 stages run; `--refresh` re-fetches anything cached more than 1 day ago; `--merge-cache` copies another run's cache; exit code 2 when a hard rule fails.
+- `engine/common.py`: `merge_cache`.
+- `data/seeds.csv`: 14 Apple chart seeds (S059-S072).
+- Tests: draft, export, merge, refresh, linked country, Apple charts; 240 in total.
+- Docs: WORKFLOW (stages 8 and 9, seeds, commands, resume), README, TECH_RUNTIME, DECISIONS, PHASES (Phase 4 done, Phase 5), and both records files.
+
 ## 2026-10-28: Stage 7, route (Phase 3 done)
 
 - Added `engine/route.py`: `scored` -> `routed`. Best channel (email, contact form, guest-pitch page) and backup channel (another checkable channel, the creator's own social profile, a second email), each with its URL and evidence URL. Own-domain emails first, role mailboxes last, template placeholders never.

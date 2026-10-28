@@ -79,3 +79,34 @@ def test_required_docs_exist():
     ]
     missing = [d for d in docs if not (ROOT / d).is_file()]
     assert not missing, f"missing docs: {missing}"
+
+
+def test_refresh_shortens_the_cache_window(monkeypatch, tmp_path):
+    import run
+
+    seen = {}
+
+    def fake_discover(conn, config, path):
+        seen.update(config["cache"])
+        raise SystemExit  # stop after discover: only the config matters here
+
+    monkeypatch.setattr(run.discover, "run", fake_discover)
+    seeds = tmp_path / "s.csv"
+    seeds.write_text("seed_id\n")
+    try:
+        run.main(["--input", str(seeds), "--out", str(tmp_path / "out"), "--refresh"])
+    except SystemExit:
+        pass
+    assert seen["search_max_age_days"] == seen["enrich_max_age_days"] == seen["refresh_max_age_days"] == 1
+
+
+def test_fetch_shard_argument_and_needs_a_discovered_run(tmp_path):
+    import run
+
+    assert run.parse_args(["--fetch-shard", "2/4"]).fetch_shard == (2, 4)
+    for bad in ("0/4", "5/4", "x"):
+        with pytest.raises(SystemExit):
+            run.parse_args(["--fetch-shard", bad])
+    seeds = tmp_path / "s.csv"
+    seeds.write_text("seed_id\n")
+    assert run.main(["--input", str(seeds), "--out", str(tmp_path / "out"), "--fetch-shard", "1/2"]) == 1

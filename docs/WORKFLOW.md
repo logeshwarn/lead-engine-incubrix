@@ -13,8 +13,8 @@ Each stage is one file in `engine/`. It reads a table and writes a table, so it 
 | 5 | caps | `engine/caps.py` | `deduped` | `capped` table (a country above 60% trimmed) and `cap_checks` table (each hard rule, value, limit, passed) | **built** |
 | 6 | score | `engine/score.py` | `capped` | `scored` table: 5 score parts, `lead_score` 0-100, `priority` A/B/C | **built** |
 | 7 | route | `engine/route.py` | `scored` | `routed` table: best and backup channel, each with its handle or URL and evidence URL | **built** |
-| 8 | draft | `engine/draft.py` | routed | first message (+ 2 follow-ups for Priority A), opt-out included | not built |
-| 9 | export | `engine/export.py` | drafted | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | `rejected.csv` built (Phase 2); the rest in Phase 5 |
+| 8 | draft | `engine/draft.py` | `routed` | `drafted` table: first message for every lead, + 2 follow-ups for Priority A, each checked | **built** |
+| 9 | export | `engine/export.py` | `drafted` | `leads.csv`, `outreach/`, `rejected.csv`, `run_report.md` | **built** |
 
 Shared helpers live in `engine/common.py`:
 - config loading and one log file per run
@@ -33,16 +33,17 @@ Each row is a niche to search, not a lead. `tests/test_seeds.py` checks the file
 | `seed_id` | unique ID, for example `S001` |
 | `segment` | one of the three workbook segment labels in `config.yaml` |
 | `niche` | short label, used for segment and country mix reporting |
-| `primary_platform` | `youtube`, `podcast` (keyword search), or `podcast_category` (the keyword is a Podcast Index category name, e.g. `Fitness`; returns active English shows from the category's trending and recently updated lists) |
+| `primary_platform` | `youtube`, `podcast` (keyword search), `podcast_category` (the keyword is a Podcast Index category name, e.g. `Fitness`; returns active English shows from the category's trending and recently updated lists), or `apple_chart` (the keyword is an Apple genre name from `discover.apple_genres`, e.g. `Health & Fitness`; returns Apple's top-200 chart for that genre in each store in `discover.chart_stores`) |
 | `discovery_keywords` | search terms separated by `;`. Each YouTube term costs one `search.list` call (100 units). No term may repeat |
 | `need_signal_to_check` | hint for verify about which need to look for. Never used as evidence |
 | `size_min`, `size_max` | subscriber range for YouTube seeds. Blank for podcasts (no public audience count) |
 | `status` | `active` (searched) or `paused` (skipped) |
 
-The current file has 42 seeds. One uncached pass makes:
+The current file has 72 seeds: the owner's 42, 16 Podcast Index category seeds (S043-S058) and 14 Apple chart seeds (S059-S072). One uncached pass makes:
 - 84 YouTube searches, about 8,400 quota units
-- 29 Podcast Index calls
-- 29 iTunes calls
+- 29 Podcast Index searches and 32 category-list calls
+- 29 iTunes searches
+- 84 Apple chart calls (14 genres x 6 stores) and their lookups
 
 ## Stage 1: discover
 
@@ -61,6 +62,7 @@ The current file has 42 seeds. One uncached pass makes:
   | `source`, `query`, `seed_id`, `segment`, `niche` | where the row came from, for tracing evidence |
   | `discovered_at` | date (UTC) |
 
+- **Apple chart seeds** (`apple_chart`, added 2026-10-28 for non-US volume): Apple's top-200 chart for one genre in each non-US approved store (GB, AU, CA, IE, NZ, SG), then the iTunes lookup API for each show's feed. A store's chart leans towards that country's listeners, so it finds more non-US creators, which the 60% country cap needs. The store is **never** country evidence; verify still needs the creator's own statement.
 - **Category seeds** (`podcast_category`): two Podcast Index calls per category, "trending" and "recently updated" (`discover.category_lists`), up to 1,000 English shows each. Every show returned has a recent episode. Keyword search stops at 60 results, so categories are the main volume source.
 - **Inactive shows dropped here:** a podcast whose newest episode (as Podcast Index or Apple reports it, column `newest_item_at`) is older than 60 days is removed before enrich, because it can never pass "active". Shows with no reported date are kept and judged by verify. The count dropped is in the log.
 - **Duplicates:** when the same creator is found by several keywords or sources, the first hit is kept, in seed-file order.
@@ -97,7 +99,7 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
     - `partial: <what failed>`, for example the website was blocked by robots.txt
     - `skipped: <reason>`, for example size or country
     - `failed: <reason>`, for example no feed URL, feed error, or quota used up
-- **Parallel fetching:** feeds and websites are fetched 8 at a time (`enrich.workers`), each thread with its own database connection (SQLite in WAL mode). Results are put back in input order, so a rerun gives the same tables. YouTube stays one call at a time, because it is quota-bound, not slow.
+- **Parallel fetching:** YouTube channels (2 calls each), feeds and websites are fetched 24 at a time (`enrich.workers`; raised from 8 on 2026-10-28 for the full run), each thread with its own database connection (SQLite in WAL mode). Results are put back in input order, so a rerun gives the same tables. Once the YouTube quota runs out, a shared flag stops the remaining channels' calls.
 - **Failure handling:** a failed call marks the row and is logged; the run continues. If the YouTube quota runs out, the remaining YouTube rows are marked `failed: quota used up`, and the next run resumes from the cache.
 - **Rerunnable:** everything goes through the cache for 7 days (`cache.enrich_max_age_days`). Both tables are rebuilt each run.
   - Missing pages (4xx) are cached too.
@@ -127,7 +129,8 @@ Measured on 2026-10-27, with 1 YouTube term and 1 podcast term (S011, S001):
 3. a postal address (US "City, ST 12345", UK, Canadian or Australian postcode), but only on a contact or about page or in the description, because a homepage can list an event venue
 4. a phone prefix (+44, +353, +61, +64, +65; +1 is skipped because it's shared by US and CA)
 5. a sentence placing the creator: "based in", "located in", "X-based", or "we are from" (with a subject, so "lessons from London" does not count). When several places appear, the right-most wins: "Birmingham, Alabama" is US
-6. last, the website's country domain (`.uk`, `.ca`, `.ie`, `.au`, `.nz`, `.sg`), labelled as such in the evidence
+6. the website's country domain (`.uk`, `.ca`, `.ie`, `.au`, `.nz`, `.sg`), labelled as such in the evidence
+7. for a podcast that fails only on country: the country its own linked YouTube channel states on YouTube (`check_linked_country`, 1 cached call shared with the size check). Measured 2026-10-28: 104 of 147 such channels state an approved country
 
 A sentence or address (4-5 above, and street addresses) can describe someone other than the host: a staff coach, a co-founder, an agent, a parent company, or the topic ("Moscow is a city located in northern Idaho"). So the LLM creator check is also given that quote and answers whom it is about (`country_quote_about`): `host` (the host, or the host's own business, practice or show), `someone else`, or `unclear`. Anything but `host` is a rejection ("country not evidenced: ..."). The platform country, the feed location tag and the country domain are not asked about, because they describe the show itself.
 
@@ -193,7 +196,24 @@ Input: `scored`. Output: `routed`, the same rows plus `best_channel`, `channel_h
 
 The same `route.choose` runs inside verify's "reachable" check: a lead without both channels is rejected there ("no backup channel (only Email ...)"), so caps and score never count it. Route itself raises an error if a qualified row has no pair, which would mean stale tables.
 
-## Stage 9: export (rejected.csv so far)
+## Stage 8: draft
+
+Input: `routed`. Output: `drafted`, plus `personalization_hook`, the first message, Priority A's two follow-ups (channel and day of each), `draft_checks` and `draft_ok`.
+
+- **Sequence:** every lead gets a first message on its best channel. Priority A also gets follow-up 1 on day 4 (same channel) and follow-up 2 on day 9 (backup channel) (`draft.follow_up_days`).
+- **Templates** (`engine/draft.py`, rendered in `outreach/templates.md`): email (subject, body, sign-off, opt-out, postal address), contact form or guest-pitch page (the same body, no subject; a guest-pitch page message says it is not a guest pitch), and a short social message (LinkedIn, Instagram, X, TikTok; sent by hand). The segment changes one sentence: the angle for a show, a channel, or a coach or educator.
+- **Only verified facts are filled in:** the latest item's title (cut at a word boundary to `draft.title_chars`, or `dm_title_chars` for social), the gap verify measured in its own numbers ("none of your last 16 episodes has a transcript", "11 long episodes", "a 24-day gap", or the creator's own words), the segment and the channel. The pitch, call to action and follow-up offer are in `config.yaml` (`draft`); the pitch only uses the assignment's need list (editing, captions, repurposing). No LLM writes the messages (decision 2026-10-28), so nothing can be invented.
+- **Checks on every message:** cites the recent item, names the sender, has an opt-out ("won't contact you again"), fits the channel limit (`draft.max_chars`: 1,500 for email and forms, 300 for LinkedIn, 1,000 for other social), never claims the sender works for IncuBrix, and has no unfilled `{placeholder}`. The email postal address is a placeholder until launch (`{sender_postal_address}`), flagged as "fill before real sending" but not a failure. A failed check is logged as an error with the lead and message.
+
+## Stage 9: export
+
+`export.run` writes the --out folder:
+- `leads.csv`: qualified leads only, the 30 workbook columns, sorted by `lead_id`. `lead_id` is the stable platform ID, so a refresh keeps every ID. `first_message` holds the subject line first for email. `duplicate_check` and `completeness_check` are filled per row; `followers_or_subscribers` may be blank ("audience size not public": podcast directories publish none). A duplicate `lead_id` stops the export.
+- `outreach/`: `sequences.csv` (every message: lead, step, day, channel, send mode, recipient, subject, text), one Markdown file per lead in `A/`, `B/` or `C/` with its checks, and `templates.md`. Email may be sent automatically (test accounts only until launch); every other channel is marked manual.
+- `rejected.csv`: see below.
+- `run_report.md`: result (all hard rules pass, or FAILED with the rule), counts, country/segment/priority/channel mix, the hard rules, top rejection reasons, runtime, API calls per source (new, cached, failed), Gemini tokens used by new calls, cost and the error count. Every number is read from the database and the run log.
+
+### rejected.csv
 
 `export.write_rejected` reads `capped` and writes every Rejected row to `<out>/rejected.csv` with `REJECTED_COLUMNS`: platform, platform ID, name, profile URL, website, segment, niche, seed, country and its evidence URL, `rejection_reason` (all reasons, separated by semicolons; the first is the main one), `duplicate_of` and `checked_date`. The workbook has no tab for rejects, so these columns are the engine's own. A rejected row without a reason stops the run with an error, because nothing may be dropped silently. `leads.csv`, `outreach/` and `run_report.md` come in Phase 5.
 
@@ -212,8 +232,11 @@ The same `route.choose` runs inside verify's "reachable" check: a lead without b
 ## Commands
 
 - `python run.py --input data/seeds.csv --out output/`: full run
-- `python run.py --refresh`: re-check evidence older than 30 days, keep unchanged cached results
+- `python run.py --refresh`: re-fetch every search and creator's data cached more than 1 day ago (`cache.refresh_max_age_days`), so all evidence is re-checked today; anything fetched within the day is kept. A normal run already never uses data older than 7 days, so evidence is always well within 30 days
+- `python run.py --out output/full/ --merge-cache output/wave2/`: first copy another run's cached fetches into this folder (two runs fetching at once must use separate folders, because every stage replaces its table)
+- `python run.py --out output/full/ --fetch-shard 2/4 --workers 8`: while a full run is enriching in `output/full/`, fill the shared cache for one quarter of its creators (a stable hash of `platform_id`), last first. Shards skip discover and YouTube and write no tables; the full run then reads those creators from the cache. Parsing a raw feed is CPU work and one Python process uses about one core, so N shards make the first fetch about N times faster. Afterwards rerun the normal command: everything is cached.
 - `python check_apis.py`: one cheap live call per API to prove the `.env` keys work
+- `python seedtest.py plan|send|mark|clicks|replies|report --out <run folder>`: the seed test (above)
 
 ## Qualification checks (all must pass, each with a working public link)
 
@@ -254,6 +277,17 @@ Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer
 
 All values are in `config.yaml`. Enforced by `engine/caps.py` (stage 5); `run.py` exits with code 2 when any of them fails.
 
+## Seed test (`seedtest.py`, Phase 6)
+
+Proves scheduling, tracked links and reply logging on 3 channels, using only the owner's own test accounts (`SEED_*` in `.env`; the script refuses any other recipient and stops if one is missing).
+
+1. `python seedtest.py plan --out <run folder> --leads 3`: for the first 3 Priority A leads, schedules the email sequence (first message, follow-up 1, follow-up 2) and one LinkedIn and one Instagram message. One sequence day is `seed_test.minutes_per_day` minutes (2), so the day-4 and day-9 follow-ups arrive 8 and 18 minutes later. Each message gets its own tracked link, `http://localhost:8765/c/<seed id>`. Table `seed_schedule`.
+2. `python seedtest.py clicks --out <run folder>` (in a second terminal): the click tracker. Each click is logged to `seed_events` and redirected to incubrix.com.
+3. `python seedtest.py send --out <run folder>`: sends every due email by SMTP (Gmail, App Password) and prints every due LinkedIn and Instagram message. Run it again after 8 and 18 minutes for the follow-ups.
+4. **By hand (platform rules forbid automated DMs):** send each printed LinkedIn and Instagram message from your account to your second test account, then `python seedtest.py mark --out <run folder> S004 sent`. Reply from the test accounts; for social replies run `mark ... reply`. Screenshot each sent message, the click page and each reply into `<run folder>/seed_test/`.
+5. `python seedtest.py replies --out <run folder>`: reads the sender's inbox (IMAP) and logs every reply whose In-Reply-To or References names a seed email.
+6. `python seedtest.py report --out <run folder>`: writes `seed_test/seed_report.md` (scheduled, sent, clicks, replies per channel; planned vs sent time per message), `seed_schedule.csv` and `seed_events.csv`.
+
 ## Failure handling
 
 - **Feeds, websites, robots.txt:** a final failure is remembered for 1 day, so a rerun does not repeat it. APIs are not remembered, so a quota error clears when the quota resets.
@@ -265,3 +299,4 @@ All values are in `config.yaml`. Enforced by `engine/caps.py` (stage 5); `run.py
 - **Missing input file:** `run.py` stops with exit code 1.
 - **Config:** `run.py` stops at start-up if `config.yaml` is missing a required section.
 - **Logs:** each run writes its own log file to `<out>/logs/`.
+- **Resume after a crash or a stop (Ctrl+C, power, network):** rerun the same command. Every fetch that finished is in the cache, so discover and enrich continue where they stopped and the later stages (minutes) run again in full.
