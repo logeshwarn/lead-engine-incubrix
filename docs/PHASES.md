@@ -145,6 +145,8 @@ All 9 quotes were found word for word in the creator's own text. Hand check: 7 c
 - Hand check of the final 54: the country, size and creator evidence of each row was read. Besides Storied, borderline: Oncology Today (Dr Neil Love; the address is his medical education company), The Human Upgrade (Dave Asprey, 328,000 YouTube subscribers, under the limit). Dr. John Campbell is very large on YouTube but only links to single videos, so his size is unknown and he passes.
 - A first version of the country prompt counted the host's own business address as "someone else" and dropped 13 good rows (Pain Free Birth LLC, Fit Womens Weekly, The Mold Doctor and others). Fixed by naming the host's own business, practice or show as the host. Logged in DECISIONS.md.
 
+**Size limit lowered to 250,000 (owner, 2026-10-28):** verify rerun from cache, no new API calls: **52 qualified** (US 33, GB 10, CA 4, AU 3, NZ 1, IE 1). Newly rejected for size: The Human Upgrade (328,000) and TestGuild (451,000). Eight Christian radio shows also link the same Moody Church Media channel (286,000), and TAKEN TV links one with 271,000; all 9 are now rejected for size before the LLM is asked; none of them had qualified.
+
 **What this means for 1,000 leads:** After the verify fixes 1.6% of category candidates qualify, so about 62,000 candidates are needed, roughly 19 category seeds at about 1,650 candidates each. At 1.75 s per show that is about 22 hours of enrich (cached after the first time), and about 1,600 Gemini calls (about 2 hours with the pause; the free daily limit must be checked). Fixing the 12 doubtful patterns will lower the rate a little. Country evidence is still the biggest filter.
 
 Open questions for later phases:

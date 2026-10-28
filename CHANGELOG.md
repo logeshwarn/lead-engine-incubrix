@@ -2,6 +2,11 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-28: Podcast size limit 250,000
+
+- `config.yaml`: `verify.podcast_max_youtube_subscribers` lowered from 500,000 to 250,000 (owner's choice). Verify rerun: 52 qualified (was 54).
+- Docs: WORKFLOW, DECISIONS, PHASES, MANUAL_WORK.
+
 ## 2026-10-28: Verify fixes from the volume hand check
 
 - `engine/verify.py`:

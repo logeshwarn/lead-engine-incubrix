@@ -142,7 +142,7 @@ A sentence or address (4-5 above, and street addresses) can describe someone oth
    - answers are cached by prompt for 30 days
    - evidence columns: `creator_kind`, `creator_evidence`, `creator_evidence_url`
 
-**Podcast size** (`check_podcast_size`): podcast directories publish no audience count, so the size of a podcast comes from the creator's own YouTube channel, when their description or website links to one (`/@handle`, `/channel/UC…`, `/user/…`, `/c/…`; watch and playlist links are ignored). One `channels.list` call (1 unit, cached) on rows that pass every other check, before the LLM. Above `verify.podcast_max_youtube_subscribers` (500,000) is a rejection; the count and link are kept in `followers_or_subscribers` and `size_evidence`. No link, a hidden count or a failed call is not a reason.
+**Podcast size** (`check_podcast_size`): podcast directories publish no audience count, so the size of a podcast comes from the creator's own YouTube channel, when their description or website links to one (`/@handle`, `/channel/UC…`, `/user/…`, `/c/…`; watch and playlist links are ignored). One `channels.list` call (1 unit, cached) on rows that pass every other check, before the LLM. Above `verify.podcast_max_youtube_subscribers` (250,000) is a rejection; the count and link are kept in `followers_or_subscribers` and `size_evidence`. No link, a hidden count or a failed call is not a reason.
 
 ## Output format (`leads.csv`)
 

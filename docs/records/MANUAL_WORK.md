@@ -26,6 +26,8 @@ Work done by hand by the owner, as it happens: decisions, account setup, hand ch
 | 2026-10-28 | Owner | Chose the Gemini creator check over stricter rules, and asked that the model-quality trade-off be documented | Recorded in DECISIONS.md and config.yaml | not recorded |
 | 2026-10-28 | Owner | Chose "Volume first": raise discovery volume before building dedupe | Volume step built and measured; results in PHASES.md | not recorded |
 | 2026-10-28 | Owner | Chose to fix the doubtful rows in verify before dedupe; asked to retry when the Gemini connection dropped mid-run | Verify fixes built; 54 qualified after the rerun | not recorded |
+| 2026-10-28 | Owner | Committed the creator check, volume step and verify fixes (`c7bb6b5`) | In sync with git | not recorded |
+| 2026-10-28 | Owner | Set the podcast size limit to 250,000 linked-YouTube subscribers, after reviewing the measured sizes | `config.yaml`, DECISIONS.md | not recorded |
 
 ## Pending (not done yet)
 
@@ -34,5 +36,4 @@ These are not entries. Each one moves to the log once it is done.
 - Review the corrected `data/seeds.csv` and confirm it
 - Review the 16 category seeds S043-S058 in `data/seeds.csv` (added by Claude Code)
 - Commit the creator-check work, the volume step and the verify fixes
-- Confirm or change the podcast size limit (500,000 YouTube subscribers, `verify.podcast_max_youtube_subscribers`)
 - Note: the 20-row check in PHASES.md was done by Claude Code on the engine's output. The 40-lead audit in Phase 7 is the owner's own manual work

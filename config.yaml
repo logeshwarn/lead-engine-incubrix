@@ -72,8 +72,8 @@ verify:
   consistency_gap_days: 21    # a gap this long between recent uploads is a consistency signal
   quote_chars: 160            # evidence quotes are cut to this length around the match
   # Podcasts have no public audience count, so their size comes from the creator's linked YouTube
-  # channel. 500,000 is the widest band in the owner's YouTube seeds (pending owner review).
-  podcast_max_youtube_subscribers: 500000
+  # channel. 250,000: the owner's choice on 2026-10-28, the most common upper band in their YouTube seeds.
+  podcast_max_youtube_subscribers: 250000
   # A show whose website or contact email is on one of these domains is a broadcaster's or network's
   # programme, not a creator's. Hosting platforms (Libsyn, Spreaker, Art19) are not on this list.
   media_domains: [
