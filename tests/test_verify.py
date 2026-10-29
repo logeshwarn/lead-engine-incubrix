@@ -1,13 +1,14 @@
 """verify: every check passes only with evidence, and every rejection says why."""
 
 import json
+import os
 from datetime import timedelta
 
 import pandas as pd
 import pytest
 from conftest import FakeResponse, gemini_reply
 
-from engine import verify
+from engine import common, verify
 from engine.common import now_utc
 
 NOW = now_utc()
@@ -493,15 +494,19 @@ def test_llm_down_stops_after_two_failures(conn, cfg, fake_http):
     reasons = verified(conn).rejection_reason.tolist()
     assert reasons[:2] == ["creator check failed (gave up after 3 attempts (HTTP 503))"] * 2
     assert reasons[2:] == ["creator check not run (LLM unavailable)"] * 2
-    assert len(fake.calls) == 6  # 2 rows x 3 attempts, then no more calls
+    models = [m for provider, m, _ in common.llm_chain(cfg["llm"]) if os.getenv(common.LLM_KEYS[provider])]
+    # 2 rows x every busy model x 3 attempts, then no more calls
+    assert len(fake.calls) == 2 * len(models) * cfg["http"]["retries"]
 
 
 def test_missing_llm_key_rejects_without_calling(conn, cfg, fake_http, monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("GROQ_API_KEY", "")
     fake = fake_http(lambda url, params: gemini_reply(CREATOR))
     load(conn, [profile()])
     verify.run(conn, cfg)
-    assert verified(conn).loc["itunes:1", "rejection_reason"] == "creator check failed (LLM_API_KEY is empty)"
+    reason = verified(conn).loc["itunes:1", "rejection_reason"]
+    assert reason == "creator check failed (no LLM key is set (LLM_API_KEY, GROQ_API_KEY))"
     assert fake.calls == []
 
 

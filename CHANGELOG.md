@@ -2,10 +2,40 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-29 (early morning): merged run, more Groq models
+
+- `fallback_models` adds `gemini-3.1-flash-lite` first (its own 500 a day).
+- Gemini briefly ran on the owner's billed key (`llm.pause_seconds` 4 -> 1); its credit ran out before any paid check, so the original free key and the 4 s pause are back.
+- Rerun 06:22-06:51 IST from the cache: 211 leads (A 25, B 186), all non-US (GB 92, AU 52, CA 46, NZ 10, SG 6, IE 5); 1,997 creators unchecked.
+- `common.llm_json`: a model that is busy (5xx after retries) passes the prompt to the next model without being dropped. `fallback_models` adds `gemini-3.8-flash`. Test added; 256 in total.
+- Merged run (wave 3 cache, 03:52-04:50 IST): 32,589 candidates, 82 leads (A 25, B 57), all non-US. Groq `gpt-oss-120b` hit its 200,000-token daily cap after 125 checks; 2,263 creators unchecked.
+- `config.yaml`: `groq_models` adds `openai/gpt-oss-20b` and `qwen/qwen3.8-27b`.
+- `common.llm_json`: after a 429, waits `llm.rate_limit_wait_seconds` (60) and tries once more before treating the model as out of quota, so a per-minute limit no longer drops a model for the whole run. Test added; 255 in total.
+
+## 2026-10-29 (night): Groq as third LLM
+
+- `common.llm_json` (was `gemini_json`): one chain of Gemini models then Groq models (`llm_chain`); cached answers from any model first (`cached_get(cache_only=True)`); out-of-quota models skipped. Returns the model; verify stores it in the new `creator_model` column.
+- `config.yaml`: `llm.groq_models`, `groq_pause_seconds`, `groq_reasoning_effort`. `.env.example`: `GROQ_API_KEY`.
+- Tests: Groq fallback, cache-first; 254 in total.
+
+## 2026-10-29 (night): Gemini fallback, non-US first, wave 3 seeds
+
+- First full run (01:14-02:00 IST): 23,943 candidates, 7 leads. Gemini Flash-Lite's free daily quota ran out after 47 creator checks, so 1,601 creators went unchecked (rejected "creator check not run").
+- `common.gemini_json`: falls back to `llm.fallback_models` when a model is out of quota (`OUT_OF_QUOTA`). `config.yaml`: `fallback_models: [gemini-3.5-flash]`.
+- `verify.apply_creator_check`: non-US rows are checked first.
+- Seeds S073-S112 and 29 Apple subgenre IDs in `discover.apple_genres`.
+- Tests: Gemini fallback; 252 in total.
+
+## 2026-10-29: malformed URL fix
+
+- Wave 1 stopped at 01:04 in the website phase on a link to `http://.libsyn.com`: urllib3 raises `LocationParseError` (a `ValueError`), which `cached_get` did not catch. Malformed or schemeless URLs now fail that one row as "invalid URL", without retries. Test added; 251 in total.
+- All 20,012 podcast feeds were cached before the stop (19,923 readable). The final run will continue from the cache.
+
 ## 2026-10-28 (night): fetch shards
 
 - `run.py --fetch-shard K/N` and `--workers N`; `enrich.in_shard`. 4 shards started next to wave 1 in `output/full/`.
 - Tests: 3 new (shard split, shard run fills the cache only, argument check); 248 in total.
+- Fix: the first 8 shards stopped on `database is locked` after all 20,012 feeds were cached (9 processes writing one cache). Cache and log writes now go through `common.write_with_retry`, which retries a locked write up to 10 times. Tests: 2 new; 250 in total. Shards restarted (6) for the website phase.
 - Docs: README flags, WORKFLOW commands, DECISIONS.
 
 ## 2026-10-28 (night): launch kit and workbook text (drafts)

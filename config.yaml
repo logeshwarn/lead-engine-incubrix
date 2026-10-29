@@ -56,6 +56,36 @@ discover:
     TV & Film: 1309
     Sports: 1545
     True Crime: 1488
+    # subgenres (2026-10-29), IDs from Apple's genre service
+    Business/Careers: 1410
+    Business/Entrepreneurship: 1493
+    Business/Investing: 1412
+    Business/Management: 1491
+    Business/Marketing: 1492
+    Health/Alternative Health: 1513
+    Health/Fitness: 1514
+    Health/Medicine: 1518
+    Health/Mental Health: 1517
+    Health/Nutrition: 1515
+    Education/Courses: 1501
+    Education/How To: 1499
+    Education/Self-Improvement: 1500
+    Education/Language Learning: 1498
+    Arts/Design: 1402
+    Arts/Fashion & Beauty: 1459
+    Arts/Food: 1306
+    Arts/Visual Arts: 1406
+    Arts/Books: 1482
+    Kids & Family/Parenting: 1521
+    Society/Relationships: 1544
+    Society/Places & Travel: 1320
+    Society/Personal Journals: 1302
+    Leisure/Crafts: 1506
+    Leisure/Hobbies: 1505
+    Leisure/Home & Garden: 1508
+    Religion/Spirituality: 1444
+    Sports/Running: 1551
+    Music/Music Interviews: 1525
 
 segments:                     # approved segments, spelled exactly as the Submission Workbook dropdown
   - Podcaster/Video Podcaster
@@ -176,8 +206,15 @@ llm:
   # Free tier. Model quality changes engine quality: a stronger model classifies and writes better,
   # but costs more or is rate-limited. Swap here; see DECISIONS.md (2026-10-28) for the test results.
   model: gemini-3.5-flash-lite
+  fallback_models: [gemini-3.1-flash-lite, gemini-3.5-flash, gemini-3.8-flash]  # each has its own free daily quota; asked in order when the one before runs out (429) or is busy (5xx)
+  # Groq free tier (GROQ_API_KEY), asked after the Gemini models, in order. Each model has its own daily
+  # token cap (gpt-oss-120b: 200,000 tokens in a rolling 24 h, about 115 checks).
+  groq_models: [openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b]
+  groq_pause_seconds: 14       # Groq free tier allows 8,000 tokens a minute; one check is about 1,700 tokens
+  rate_limit_wait_seconds: 60  # after a 429: wait once and retry (per-minute limit) before calling the quota spent
+  groq_reasoning_effort: low   # gpt-oss only: same answer in the 2026-10-29 probe, 1,705 tokens instead of 2,447
   timeout_seconds: 60         # LLM answers are slower than API lookups
-  pause_seconds: 4            # after each uncached call: about 15 requests a minute
+  pause_seconds: 4            # after each uncached Gemini call: about 15 a minute, inside the free tier (1 s is enough on a billed key)
   cache_days: 30              # same prompt, same answer: reuse it as long as evidence stays valid
   max_input_chars: 6000       # text sent per creator (description + website), to keep prompts small
 

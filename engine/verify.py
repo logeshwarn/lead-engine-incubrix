@@ -23,7 +23,7 @@ import tldextract
 from langdetect import DetectorFactory, LangDetectException, detect
 
 from engine import route
-from engine.common import ApiError, cached_get, gemini_json, now_utc
+from engine.common import ApiError, cached_get, llm_json, now_utc
 from engine.enrich import YT_CHANNELS_URL
 
 log = logging.getLogger("verify")
@@ -201,6 +201,7 @@ VERIFIED_COLUMNS = [
     "country_iso2", "country_evidence", "country_evidence_url",
     "primary_language", "english_share",
     "creator_kind", "creator_evidence", "creator_evidence_url",  # set by the LLM check (check_creator)
+    "creator_model",  # the LLM model that judged it (config llm: Gemini models, then Groq)
     "country_quote_about",  # LLM: whom a website country quote describes (check_creator)
     "content_count_30d", "longform_count_60d", "last_content_date", "recent_content_url", "recent_content_title",
     "monetization_signal", "monetization_evidence", "monetization_evidence_url",
@@ -783,28 +784,38 @@ def country_quote_to_check(row, profile):
 
 
 def check_creator(conn, config, profile, country_quote=None):
-    """Ask the LLM whether a creator runs the show. Returns (kind, quote, url, reason, about, tokens).
+    """Ask the LLM whether a creator runs the show. Returns (kind, quote, url, reason, about, tokens, model).
 
     The model's quote must appear word for word in the creator's own text; if it does not, the
     answer is "unverified" and the row is rejected, so the model cannot invent evidence. `about` says
     whom `country_quote` describes; that quote is the engine's own, so the model only judges it.
     """
     prompt = creator_prompt(profile, config["llm"]["max_input_chars"], country_quote)
-    answer, tokens, was_cached = gemini_json(conn, config, CREATOR_SYSTEM, prompt, CREATOR_SCHEMA)
+    answer, tokens, was_cached, model = llm_json(conn, config, CREATOR_SYSTEM, prompt, CREATOR_SCHEMA)
     tokens = 0 if was_cached else tokens  # only new calls use the free quota
     about = answer.get("country_quote_about") if country_quote else None
     quote_text = normalise(answer.get("quote"))
     sources = own_texts(profile)
     url = next((u for t, u in sources if len(quote_text) >= 10 and quote_text in normalise(t)), None)
     if url is None:
-        return "unverified", answer.get("quote"), None, "model quote not found in the creator's text", about, tokens
-    return answer["kind"], answer["quote"], url, answer.get("reason"), about, tokens
+        return (
+            "unverified",
+            answer.get("quote"),
+            None,
+            "model quote not found in the creator's text",
+            about,
+            tokens,
+            model,
+        )
+    return answer["kind"], answer["quote"], url, answer.get("reason"), about, tokens, model
 
 
 def apply_creator_check(conn, config, rows, profiles_by_id):
     """Run check_creator on rows that passed everything else; reject any that are not creators."""
     tokens_used, failures_in_a_row, calls = 0, 0, 0
-    for row in rows:
+    # Non-US rows first: the US share is capped at 60%, so non-US leads set how many leads the run
+    # can keep. When the free daily LLM quota runs out, the rows left unchecked are then US rows.
+    for row in sorted(rows, key=lambda r: r.get("country_iso2") == "US"):
         if row["candidate_status"] != "Qualified":
             continue  # the LLM is only asked about rows that would otherwise qualify
         if failures_in_a_row >= 2:  # the LLM is down or out of quota: stop asking, the next run retries
@@ -813,9 +824,15 @@ def apply_creator_check(conn, config, rows, profiles_by_id):
             try:
                 prof = profiles_by_id[row["platform_id"]]
                 country_q = country_quote_to_check(row, prof)
-                kind, q, url, note, about, tokens = check_creator(conn, config, prof, country_q)
+                kind, q, url, note, about, tokens, model = check_creator(conn, config, prof, country_q)
                 failures_in_a_row, calls, tokens_used = 0, calls + 1, tokens_used + tokens
-                row.update(creator_kind=kind, creator_evidence=q, creator_evidence_url=url, country_quote_about=about)
+                row.update(
+                    creator_kind=kind,
+                    creator_evidence=q,
+                    creator_evidence_url=url,
+                    country_quote_about=about,
+                    creator_model=model,
+                )
                 reason = {
                     "creator": None,
                     "organisation": f"not a creator (LLM): {note}",

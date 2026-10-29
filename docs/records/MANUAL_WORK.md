@@ -44,3 +44,6 @@ These are not entries. Each one moves to the log once it is done.
 - Review the 16 category seeds S043-S058 in `data/seeds.csv` (added by Claude Code)
 - Commit the creator-check work, the volume step and the verify fixes
 - Note: the 20-row check in PHASES.md was done by Claude Code on the engine's output. The 40-lead audit in Phase 7 is the owner's own manual work
+| 2026-10-29 | Owner | Created a Groq account and API key, added `GROQ_API_KEY` to `.env` | Third LLM for the creator check after Gemini's free daily cap ran out | not recorded |
+| 2026-10-29 | Owner | Replaced `LLM_API_KEY` in `.env` with a key from their own Gemini project with billing on | Free Gemini quota ran out with 1,997 creators unchecked | not recorded |
+| 2026-10-29 | Owner | Put their original free Gemini key back in `.env` after the billed key's credit ran out | No credit left on the billed key | not recorded |
