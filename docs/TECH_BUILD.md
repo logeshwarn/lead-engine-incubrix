@@ -12,7 +12,7 @@ Update this file when a development tool is added, removed or upgraded.
 | Testing | pytest | 9.1.1 | settings in `pyproject.toml`; tests in `tests/` |
 | Lint and format | ruff | 0.17.3 | settings in `pyproject.toml` (line length 120, rules E, F, I, B) |
 | Config and secrets | `.env`, `.env.example`, `config.yaml` | n/a | `.env` ignored by git; only `.env.example` is committed |
-| OS | Windows 11 | n/a | the commands in README use Windows paths |
+| OS | Windows 11 | n/a | built and run on Windows; README gives Windows and macOS/Linux setup commands |
 
 ## Environment setup
 

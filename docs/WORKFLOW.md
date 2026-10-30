@@ -39,11 +39,12 @@ Each row is a niche to search, not a lead. `tests/test_seeds.py` checks the file
 | `size_min`, `size_max` | subscriber range for YouTube seeds. Blank for podcasts (no public audience count) |
 | `status` | `active` (searched) or `paused` (skipped) |
 
-The current file has 72 seeds: the owner's 42, 16 Podcast Index category seeds (S043-S058) and 14 Apple chart seeds (S059-S072). One uncached pass makes:
+The current file has 198 seeds: the owner's 42, then waves added during the build (DECISIONS.md): Podcast Index categories (S043-S058, S165-S198), Apple charts (S059-S101, S115-S143) and country keyword seeds (S102-S114, S144-S164). By platform: 32 YouTube, 44 podcast keyword, 50 Podcast Index category, 72 Apple chart. One uncached pass makes:
 - 84 YouTube searches, about 8,400 quota units
-- 29 Podcast Index searches and 32 category-list calls
-- 29 iTunes searches
-- 84 Apple chart calls (14 genres x 6 stores) and their lookups
+- 131 Podcast Index and 131 iTunes keyword searches, and 100 category-list calls
+- 432 Apple chart calls (72 genres x 6 stores) and their lookups
+
+`data/sample_seeds.csv` holds 11 of these seeds (S102-S112, podcast keywords only) for a quick first run: 13.4 minutes from an empty folder, 11 leads from 5 countries (31 Oct).
 
 ## Stage 1: discover
 

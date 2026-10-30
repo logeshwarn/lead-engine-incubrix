@@ -52,6 +52,7 @@ Timings and counts come from `CHANGELOG.md`, the run logs and the run reports. A
 | 30 Oct 18:46–19:15 | **1,125** | Wave 5: 21 country keyword seeds (251 new shows). |
 | 30 Oct 19:17–21:25 | **1,222** | Wave 6: 18 Podcast Index categories (8,087 new shows), 39 more non-US leads. |
 | 30 Oct 21:26–22:39 | **1,262** | Wave 7: 16 more categories (5,103 new shows). US 757 (60.0%), GB 223, AU 135, CA 105, NZ 20, IE 14, SG 8. All hard rules pass. |
+| 30 Oct 23:04–23:56 | **1,260** | Rerun from the cache after the own-words need fix (DECISIONS.md): 4 creators lost their only need, and the A list was re-picked. |
 
 ### What moved the count at each step
 
@@ -59,7 +60,7 @@ Timings and counts come from `CHANGELOG.md`, the run logs and the run reports. A
 - **82 → 211:** more Groq models, plus wait-and-retry, so a per-minute limit no longer cost a model its whole day.
 - **211 → 493:** quota resets, plus `gemini-3.8-flash`. The cache meant every reset went only to new creators.
 - **493 → 1,083:** `gemini-3.1-flash-lite`'s separate quota and the 12:30 Gemini reset. Most of the gain is US leads. US creators were checked last by design, and the 445 non-US leads let the cap admit up to about 667 US leads.
-- **1,083 → 1,262:** new non-US seeds. The 60% cap allows 1.5 US leads per non-US lead, and qualified US creators were already waiting, so every new non-US lead raised the total by about 2.5. Podcast Index categories gave far more than Apple subgenres or keyword searches.
+- **1,083 → 1,262 (1,260 after the need fix):** new non-US seeds. The 60% cap allows 1.5 US leads per non-US lead, and qualified US creators were already waiting, so every new non-US lead raised the total by about 2.5. Podcast Index categories gave far more than Apple subgenres or keyword searches.
 
 No rule was relaxed along the way. Every lead passed the same checks, and every LLM answer still had to quote the creator's own text word for word.
 
@@ -73,7 +74,7 @@ These ran on copies of the output folder (`output/proof/`, `output/proof_refresh
 
 ## What is left
 
-- Every creator has been checked. 278 qualified US creators are trimmed by the 60% cap; only more non-US leads would let them in.
+- Every creator has been checked. 276 qualified US creators are trimmed by the 60% cap; only more non-US leads would let them in.
 - The cache stays valid until about 4 Nov (searches and pages) and about 28 Nov (LLM answers). Until then, a rerun of the same command reads it back.
 
 ## Commands

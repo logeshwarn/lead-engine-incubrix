@@ -2,10 +2,16 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-30 (night): docs cleanup
+
+- README rewritten as a run guide for evaluators: setup on Windows and macOS/Linux, where to get each API key, a quick try on `data/sample_seeds.csv`, how to write a seed file, full run and refresh with honest time and quota, outputs, settings, seed test, troubleshooting, project layout and docs index.
+- Added `data/sample_seeds.csv` (S102-S112). From an empty folder: 13.4 min, 297 candidates, 11 leads in 5 countries, all hard rules pass. A 3-seed sample was tried first, but its leads came from only 1-2 countries, so the run failed the 3-country rule.
+- TECH_RUNTIME: removed the stale *(planned)* marks, listed every stage table, current discover call counts and the LLM chain order. WORKFLOW: current seed counts. TECH_BUILD: OS note.
+
 ## 2026-10-30 (night): own-words need fix
 
 - `engine/verify.py`: `NEED_WORDS` phrases must be about the show; `quote(..., whole_words=True)` for need quotes. 17 of 21 own-words needs were false matches (DECISIONS.md). Tests: 9 new; 265 in total.
-- Rerun from the cache to re-pick needs and Priority A.
+- Rerun from the cache (23:04-23:56) to re-pick needs and Priority A: **1,260 leads** (US 756 = 60.0%), all hard rules pass; 5 real own-words needs remain. Docs use 1,260.
 
 ## 2026-10-30: waves 4-7, 1,262 leads
 
