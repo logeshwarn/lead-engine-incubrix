@@ -2,6 +2,12 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-31: seed test done
+
+- Seed test on the owner's own accounts, 3 channels: Email 9 of 9 sent automatically on schedule (first messages, then +8 and +18 min, each within a minute of plan), 1 click, 1 reply found in Gmail by IMAP; Instagram and LinkedIn 1 message each sent by hand, each with 1 click and 1 reply. Proof in `output/full/seed_test/`.
+- `seedtest.py`: `mark --out <folder> S004 sent` (the order in the README) now parses (`parse_intermixed_args`). Test added; 267 in total.
+- README: the network must allow SMTP (port 587), with a troubleshooting row. Docs: PHASES (Phase 6 done), WORKBOOK_TEXT, MANUAL_WORK.
+
 ## 2026-10-30 (night): docs cleanup
 
 - README rewritten as a run guide for evaluators: setup on Windows and macOS/Linux, where to get each API key, a quick try on `data/sample_seeds.csv`, how to write a seed file, full run and refresh with honest time and quota, outputs, settings, seed test, troubleshooting, project layout and docs index.

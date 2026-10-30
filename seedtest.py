@@ -235,7 +235,8 @@ def main(argv=None):
     p.add_argument("args", nargs="*", help="for mark: SEED_ID sent|reply")
     p.add_argument("--out", default="output/", help="the run's output folder (default: output/)")
     p.add_argument("--leads", type=int, default=3, help="for plan: how many Priority A leads (default 3)")
-    a = p.parse_args(argv)
+    # intermixed: "mark --out output/ S004 sent" (the order in the README) must work, not only "mark S004 sent --out"
+    a = p.parse_intermixed_args(argv)
     config = load_config()
     if a.command == "plan":
         plan(a.out, a.leads, config)

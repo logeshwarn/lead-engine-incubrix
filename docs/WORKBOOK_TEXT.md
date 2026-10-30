@@ -72,7 +72,7 @@ From `docs/LAUNCH_KIT.md`:
 | Final duplicates | 0 | `leads.csv` `duplicate_check`; the export stops on a duplicate `lead_id` |
 | Outreach channels with ready sequences | 6: Email, Contact form, Podcast guest pitch, LinkedIn, Instagram, X | `outreach/templates.md`, `outreach/sequences.csv` |
 | Priority A leads with first message + 2 follow-ups | 25 | `outreach/A/`, `outreach/sequences.csv` |
-| Seed test on own accounts passed on 3 channels | [owner: after the seed test] | `seed_test/seed_report.md` and screenshots |
+| Seed test on own accounts passed on 3 channels | Yes (31 Oct): Email 9 of 9 sent automatically on schedule (first messages, then +8 and +18 min, each within a minute of plan), 1 click, 1 reply found in Gmail by IMAP; Instagram and LinkedIn 1 message each sent by hand, each with 1 click and 1 reply | `seed_test/seed_report.md` and screenshots |
 | Engine reruns from README | Yes | `README.md`; the repeat run in tab 03 B |
 
 ### B. Exceptional requirements

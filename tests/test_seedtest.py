@@ -75,6 +75,16 @@ def test_mark_and_report(seeded):
     assert "| Instagram | 1 | 1 | 0 | 1 |" in report
 
 
+@pytest.mark.parametrize("argv", [
+    ["mark", "--out", "OUT", "S004", "sent"],  # the order the README shows
+    ["mark", "S004", "sent", "--out", "OUT"],
+])  # fmt: skip
+def test_mark_accepts_the_seed_id_before_or_after_out(seeded, argv):
+    out, db = seeded
+    seedtest.main([str(out) if a == "OUT" else a for a in argv])
+    assert db.execute("SELECT COUNT(*) FROM seed_events WHERE seed_id = 'S004' AND event = 'sent'").fetchone()[0] == 1
+
+
 def test_missing_recipients_stop_the_plan(conn, config, tmp_path, monkeypatch):
     monkeypatch.setattr(seedtest, "load_dotenv", lambda: None)
     for key in ("SEED_TO_EMAIL", "SEED_LINKEDIN_TO", "SEED_INSTAGRAM_TO"):
