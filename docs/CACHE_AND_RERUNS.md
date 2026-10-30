@@ -1,6 +1,6 @@
-# Cache and reruns: how the engine reached 1,083 leads
+# Cache and reruns: how the engine reached 1,260 leads
 
-The full run did not happen in one pass. Free LLM quotas allow only a few hundred creator checks a day, so the engine ran several times between 28 and 29 Oct 2026. Each rerun picked up from the cache where the last one stopped. This doc covers how the cache works, why we built it, and the milestones from 7 leads to 1,083.
+The full run did not happen in one pass. Free LLM quotas allow only a few hundred creator checks a day, so the engine ran several times between 28 and 30 Oct 2026. Each rerun picked up from the cache where the last one stopped. This doc covers how the cache works, why we built it, and the milestones from 7 leads to 1,260.
 
 Timings and counts come from `CHANGELOG.md`, the run logs and the run reports. All times are IST.
 

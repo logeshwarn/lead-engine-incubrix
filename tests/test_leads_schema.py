@@ -23,14 +23,26 @@ def _read(name):
 
 def _workbook_header():
     # Read the xlsx as zipped XML so the test needs no extra library (openpyxl is not a dependency).
-    strings = [re.sub("<[^>]+>", "", s) for s in re.findall(r"<si>(.*?)</si>", _read("xl/sharedStrings.xml"), re.S)]
+    # Excel stores text in a shared-strings table; a workbook re-saved by openpyxl stores it inline in the cell.
+    with zipfile.ZipFile(WORKBOOK) as z:
+        shared = z.read("xl/sharedStrings.xml").decode("utf-8") if "xl/sharedStrings.xml" in z.namelist() else ""
+    strings = [re.sub("<[^>]+>", "", s) for s in re.findall(r"<si>(.*?)</si>", shared, re.S)]
     row4 = re.search(r'<row [^>]*r="4"[^>]*>(.*?)</row>', _read(LEADS_SHEET), re.S).group(1)
-    return [strings[int(v)] for v in re.findall(r'<c r="[A-Z]+4"[^>]*t="s"[^>]*><v>(\d+)</v>', row4)]
+    header = []
+    for cell in re.findall(r'<c r="[A-Z]+4".*?</c>', row4, re.S):
+        if 't="s"' in cell:
+            header.append(strings[int(re.search(r"<v>(\d+)</v>", cell).group(1))])
+        elif 't="inlineStr"' in cell:
+            header.append(re.sub("<[^>]+>", "", re.search(r"<is>(.*?)</is>", cell, re.S).group(1)))
+    return header
 
 
 def _dropdown(column_letter):
-    # Workbook dropdowns are stored as "A,B,C" lists on the data-validation rule for that column.
-    match = re.search(rf'sqref="{column_letter}5:[^"]*"[^>]*><formula1>&quot;(.*?)&quot;', _read(LEADS_SHEET))
+    # Workbook dropdowns are stored as "A,B,C" lists on the data-validation rule for that column
+    # (quoted as &quot; by Excel, as a plain " by openpyxl).
+    match = re.search(
+        rf'sqref="{column_letter}5:[^"]*"[^>]*><formula1>(?:&quot;|")(.*?)(?:&quot;|")</formula1>', _read(LEADS_SHEET)
+    )
     return match.group(1).split(",")
 
 

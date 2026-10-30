@@ -2,6 +2,13 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-31: fresh-clone check, workbook filled
+
+- Fresh clone of the GitHub repository into an empty folder, following only the README: install works, 267 tests pass, `check_apis.py` passes, and the sample gave 12 leads in 5 countries in 14.3 min, all hard rules passing.
+- The owner's local Submission Workbook filled from the results (yellow cells only): 00_START (repository, launch kit, AI tools, cost, manual work), 02_LEADS (first 1,000 rows by `lead_id`), 03_ENGINE_LAUNCH, 04_SELF_CHECK (values and evidence; the self-score is the owner's). 01_INSIGHT and personal fields are the owner's.
+- Docs: WORKBOOK_TEXT, CACHE_AND_RERUNS and PHASES updated.
+- `tests/test_leads_schema.py` reads both Excel's shared-strings layout and the inline strings an openpyxl-saved workbook uses, so it still checks the filled workbook (and the original).
+
 ## 2026-10-31: assignment files out of git
 
 - `docs/BRIEF.pdf`, the assignment PDF and `docs/Submission_Workbook.xlsx` are no longer tracked (local copies kept, listed in `.gitignore`). `tests/test_leads_schema.py` skips without the workbook. README, WORKFLOW, WORKBOOK_TEXT and `config.yaml` no longer link to them.

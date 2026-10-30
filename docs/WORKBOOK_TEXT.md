@@ -1,6 +1,6 @@
 # Submission Workbook text (draft)
 
-Text to paste into the Submission Workbook (from IncuBrix, kept out of the repository), tab by tab. It is a draft: the owner checks every line before pasting.
+Text to paste into the Submission Workbook (from IncuBrix, kept out of the repository), tab by tab. Claude Code pasted it into the owner's local workbook on 31 Oct (yellow cells only; the formulas are untouched); the owner checks every line before submitting. 02_LEADS holds the first 1,000 rows of `leads.csv` by `lead_id`, as that tab asks.
 
 - **[final run]**: a number from the final `run_report.md`, filled in when that run finishes.
 - **[owner]**: only the owner can fill this in (personal details, videos, product use, time spent).
@@ -25,14 +25,14 @@ Text to paste into the Submission Workbook (from IncuBrix, kept out of the repos
 
 | Requirement | Done? | Evidence path / URL | Notes |
 |---|---|---|---|
-| One clear run command in the README | Yes | `README.md`, section "Run" | `python run.py --input data/seeds.csv --out output/` |
-| Works on a fresh machine or account | [owner: test on a fresh clone] | `README.md`, section "Setup" | Python 3.11+, `pip install -r requirements.txt`, 3 keys in `.env` |
+| One clear run command in the README | Yes | `README.md`, sections 1-3 | `python run.py --input data/seeds.csv --out output/` |
+| Works on a fresh machine or account | Yes | the GitHub repository, README sections 1-2 | Fresh clone into an empty folder on 31 Oct, following only the README: install, 267 tests pass, `check_apis.py` passes, and the sample (`data/sample_seeds.csv`) gave 12 leads in 5 countries in 14.3 minutes with every hard rule passing. |
 | Removes duplicates | Yes | `engine/dedupe.py`, `tests/test_dedupe.py`; `duplicate_check` column in `leads.csv` | One creator per platform ID, website domain or email (union-find). An email listed on 3 or more shows is treated as a network's, not the creator's. The export stops on a duplicate `lead_id`. |
 | Quality checks before export | Yes | `engine/verify.py`, `engine/caps.py`, `engine/draft.py`; `run_report.md` "Hard rules"; `rejected.csv` | Each of the brief's qualification rules is checked with an evidence URL; the country caps are checked; every message is checked (episode reference, sender, opt-out, length, no employee claim). The run exits with code 2 if a hard rule fails. |
 | Clean export in the official format | Yes | `leads.csv`; `tests/test_leads_schema.py` | The 30 columns of tab 02_LEADS, in order, with the workbook's allowed values. The test re-reads the workbook. |
 | Refresh updates existing items without duplicates | Yes | `run.py --refresh`; `tests/test_setup.py::test_refresh_shortens_the_cache_window`; `tests/test_dedupe.py::test_run_writes_table_and_rerun_is_identical`; the refresh run in B (`output/proof_refresh/`) | `lead_id` is the stable platform ID, so a refreshed creator keeps its row. In the refresh run, all 11 earlier leads kept their IDs and 6 new ones were added, with 0 duplicates. |
 | Logs errors and recovers from a simple failure | Yes | `output/logs/`; `engine/common.py` (`cached_get`); `tests/test_cache.py` | Retries transient errors 3 times, logs and skips a failed source, and resumes from the cache when rerun after a crash. |
-| Tests included | Yes | `tests/` (256 tests); `python -m pytest` | |
+| Tests included | Yes | `tests/` (267 tests); `python -m pytest` | All offline: every test blocks real network calls. |
 | No secrets in the repository | Yes | `.gitignore`, `.env.example`; `tests/test_setup.py` | Keys only in `.env`, which git ignores. `.env.example` has names only (tested). |
 
 ### B. Run summary
@@ -71,9 +71,9 @@ From `docs/LAUNCH_KIT.md`:
 | Countries: 80% approved, 3+ countries, none above 60% | Yes: 100% approved, 7 countries, largest US 60.0% (756 of 1,260; the cap trims to exactly 60%) | `run_report.md` "Hard rules" and "Mix" |
 | Final duplicates | 0 | `leads.csv` `duplicate_check`; the export stops on a duplicate `lead_id` |
 | Outreach channels with ready sequences | 6: Email, Contact form, Podcast guest pitch, LinkedIn, Instagram, X | `outreach/templates.md`, `outreach/sequences.csv` |
-| Priority A leads with first message + 2 follow-ups | 25 | `outreach/A/`, `outreach/sequences.csv` |
+| Priority A leads with first message + 2 follow-ups | 25 | `outreach/A/`, `outreach/sequences.csv`. The workbook's own count shows 15: only 15 of the 25 fall within the first 1,000 rows by `lead_id` pasted in 02_LEADS. |
 | Seed test on own accounts passed on 3 channels | Yes (31 Oct): Email 9 of 9 sent automatically on schedule (first messages, then +8 and +18 min, each within a minute of plan), 1 click, 1 reply found in Gmail by IMAP; Instagram and LinkedIn 1 message each sent by hand, each with 1 click and 1 reply | `seed_test/seed_report.md` and screenshots |
-| Engine reruns from README | Yes | `README.md`; the repeat run in tab 03 B |
+| Engine reruns from README | Yes | `README.md`; the repeat run in tab 03 B; the fresh clone in tab 03 A |
 
 ### B. Exceptional requirements
 

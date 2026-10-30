@@ -11,7 +11,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | 4 | Outreach drafting | done (2026-10-28) |
 | 5 | Scale, export, refresh | done (2026-10-30: 1,260 leads, all hard rules pass) |
 | 6 | Seed test | done (2026-10-31: 3 channels, each with a send, a tracked click and a logged reply; `output/full/seed_test/`) |
-| 7 | Hardening and handover | in progress (proof runs done 2026-10-29; own-words need rule fixed and README rewritten 2026-10-30; seed test done 2026-10-31; owner fields and the owner's 40-lead audit pending) |
+| 7 | Hardening and handover | in progress (proof runs done 2026-10-29; own-words need rule fixed and README rewritten 2026-10-30; seed test, fresh-clone check and workbook filling done 2026-10-31; owner fields, videos and the owner's 40-lead audit pending) |
 
 ## Phase 0: Setup
 
