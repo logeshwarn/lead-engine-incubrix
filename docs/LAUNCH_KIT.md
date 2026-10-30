@@ -10,21 +10,21 @@ Numbers marked **[final run]** come from the final `run_report.md` and are fille
 - **Where:** the United States, United Kingdom, Canada, Australia, New Zealand, Ireland and Singapore. No country is above 60% of the list.
 - **Active:** they published 8 or more items in the last 30 days, or 2 or more long-form items in the last 60.
 - **Earning:** each has a public sign of income (services, sponsors, membership, a course, products or affiliate links), with a link to it.
-- **A gap we can name:** most have no transcript on any recent episode (35 of the first 40 leads). The rest post long episodes with no short clips. The message quotes that gap and links the episode.
+- **A gap we can name:** most have no transcript on any recent episode (917 of the 1,083 leads). Most of the rest post long episodes with no short clips (141); a few say so themselves (15) or post irregularly (10). The message quotes that gap and links the episode.
 - **Size:** small to mid-sized. Where a show links a YouTube channel, it is at most 250,000 subscribers. Large networks, broadcasters, agencies and brands are rejected.
-- **First in line:** the 25 **Priority A** leads (highest score: biggest need, most active, clear income, reachable). Each has a personalised first message and 2 follow-ups ready in `outreach/A/`. Next come the Priority B leads **[final run: count]**, then C.
+- **First in line:** the 25 **Priority A** leads (highest score: biggest need, most active, clear income, reachable). Each has a personalised first message and 2 follow-ups ready in `outreach/A/`. Next come the 1,056 Priority B leads, then the 2 C leads.
 
 ## 2. Channels and why
 
 | Channel | Role | Why |
 |---|---|---|
-| **Email** | best channel for most leads (37 of the first 40) | The address is the one the creator publishes for their show (podcast feed or own website), so it reaches the owner and is meant for business contact. It is also the only channel that can be tracked and sent at volume safely. |
-| **Contact form** | best channel when no email is published (3 of 40); the most common backup (26 of 40) | It is on the creator's own site, and the creator chose it as the way to be contacted. It is sent by hand. |
-| **Instagram DM** | backup (8 of 40) | Only the creator's own profile, linked from their show or site. Sent by hand from a real team account; Instagram does not allow automated DMs. |
-| **LinkedIn** | backup (3 of 40), mainly expert-led creators | A connection note of 300 characters or less, by hand. LinkedIn does not allow automation tools. |
-| **Podcast guest pitch** | backup (2 of 40) | The show's own "be a guest" page. Use it only for a genuine guest offer (an IncuBrix founder talking about content workflows), never as a disguised sales message. |
+| **Email** | best channel for 973 of the 1,083 leads | The address is the one the creator publishes for their show (podcast feed or own website), so it reaches the owner and is meant for business contact. It is also the only channel that can be tracked and sent at volume safely. |
+| **Contact form** | best channel when no email is published (105 leads); the most common backup (645) | It is on the creator's own site, and the creator chose it as the way to be contacted. It is sent by hand. |
+| **Instagram DM** | backup (203) | Only the creator's own profile, linked from their show or site. Sent by hand from a real team account; Instagram does not allow automated DMs. |
+| **LinkedIn** | backup (173), mainly expert-led creators | A connection note of 300 characters or less, by hand. LinkedIn does not allow automation tools. |
+| **Podcast guest pitch** | best channel for 5 leads, backup for 25 | The show's own "be a guest" page. Use it only for a genuine guest offer (an IncuBrix founder talking about content workflows), never as a disguised sales message. |
 
-Each lead's `best_channel` and `backup_channel` in `leads.csv` were chosen by the engine from that creator's own published contacts, with an evidence URL for each. **[final run: replace the 40-lead counts with the full-run mix from `run_report.md`.]**
+Each lead's `best_channel` and `backup_channel` in `leads.csv` were chosen by the engine from that creator's own published contacts, with an evidence URL for each. Counts are from the final run's `run_report.md` (29 Oct, 1,083 leads); X (15) and TikTok (4) are rare backups.
 
 ## 3. Safe daily volume per channel
 
@@ -38,7 +38,7 @@ These limits cover first messages and follow-ups together. Stay below them even 
 | LinkedIn note (by hand) | 10 a day | 15 a day | 15 a day | LinkedIn limits invitations per week. 15 a day on 5 days stays under the commonly reported weekly ceiling. |
 | Guest pitch (by hand) | 3 a day | 5 a day | 5 a day | Each pitch is written for that show. |
 
-Maximum email sends in 30 days with 2 mailboxes (5 working days a week): 200 + 300 + 400 + 400 = **1,300**. That covers a first email to every email lead plus a follow-up for most of them **[final run: check against the email-lead count]**.
+Maximum email sends in 30 days with 2 mailboxes (5 working days a week): 200 + 300 + 400 + 400 = **1,300**. The final run has 973 leads whose best channel is email (25 A, 948 B), so that covers a first email to every one of them, with 327 sends left for follow-ups. B and C follow-ups that don't fit go to month 2.
 
 ## 4. Step-by-step plan
 
@@ -85,7 +85,7 @@ Maximum email sends in 30 days with 2 mailboxes (5 working days a week): 200 + 3
 
 | Tool | Used for | Monthly cost |
 |---|---|---|
-| Lead engine (Python; Podcast Index, YouTube Data API and Apple/iTunes APIs on free quotas; Gemini free tier) | finding, checking, scoring, routing, drafting and refreshing | $0 **[final run: tokens and calls from `run_report.md`]** |
+| Lead engine (Python; Podcast Index, YouTube Data API and Apple/iTunes APIs on free quotas; Gemini and Groq free tiers) | finding, checking, scoring, routing, drafting and refreshing | $0. Creator checks: 2,124 AI answers in the final run (1,670,970 Gemini tokens from new calls), every other call from the cache (`run_report.md`) |
 | Outreach domain | separate sending reputation | about $1 (about $12 a year at most registrars) |
 | Google Workspace Business Starter, 2 mailboxes | sending and replies; Calendar booking | about $14-17 (Google's list price per user; confirm when buying) |
 | Google Sheets, or HubSpot free CRM | pipeline | $0 |
@@ -99,12 +99,12 @@ No paid sequencing tool is needed at 40 emails a day per mailbox: a person can s
 
 | Measure | Target | Reasoning |
 |---|---|---|
-| Leads contacted (first message) | all 25 A + **[final run]** B/C, within the section 3 limits | Volume is capped by safe sending, not by leads |
+| Leads contacted (first message) | all 25 A + all 1,058 B/C (948 by email, 105 by contact form, 5 by guest pitch), within the section 3 limits | Volume is capped by safe sending, not by leads |
 | Bounce rate | under 2% | Addresses come from the creator's own feed or site and are re-checked weekly |
 | Spam complaints | under 0.1% | Own-contact addresses, a real reference to their work, a clear opt-out |
 | Reply rate, Priority A | **assumption: 15%** (about 4 of 25) | Three touches on two channels, each naming a real recent episode and a measured gap |
 | Reply rate, B and C | **assumption: 3%** | Templated messages, cold, from an unknown sender with no social proof yet |
-| Meetings | **assumption: 1 in 3 replies**, so **[final run: number]** | Many replies will be "not now" or questions; a 15-minute call is a small ask |
+| Meetings | **assumption: 1 in 3 replies**, so about 12 (about 4 A replies + about 32 B/C replies = 36 replies) | Many replies will be "not now" or questions; a 15-minute call is a small ask |
 | Measured rates per channel | in the CRM by day 30 | This replaces the assumptions above for month 2 |
 
 ## 7. Biggest risk and how to handle it

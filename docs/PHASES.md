@@ -9,9 +9,9 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | 2 | Verify, dedupe, caps | done (2026-10-28) |
 | 3 | Score and route | done (2026-10-28) |
 | 4 | Outreach drafting | done (2026-10-28) |
-| 5 | Scale, export, refresh | in progress (export and refresh built 2026-10-28; full run going) |
+| 5 | Scale, export, refresh | done (2026-10-29: 1,083 leads, all hard rules pass) |
 | 6 | Seed test | in progress (seedtest.py built 2026-10-28; waiting for the owner's test accounts) |
-| 7 | Hardening and handover | in progress (launch kit and workbook text drafted 2026-10-28; final-run numbers and owner fields pending) |
+| 7 | Hardening and handover | in progress (final-run numbers and the 3 proof runs done 2026-10-29; seed test, owner fields and the owner's audit pending) |
 
 ## Phase 0: Setup
 
@@ -213,10 +213,18 @@ Done when a rerun produces 0% duplicates and an accurate run report.
 | `engine/export.py`: leads.csv, outreach/, run_report.md | done (2026-10-28) |
 | `--refresh`, resume, `--merge-cache` | done (2026-10-28) |
 | Volume: linked-YouTube country, Apple charts, parallel YouTube enrich | done (2026-10-28) |
-| Full run on all 72 seeds (`output/full/`) | running (started 2026-10-28 21:35, restarted 21:44 with parallel YouTube) |
-| Runtime, API calls, tokens and cost for 1,000 rows | after the full run |
+| Full run on all 112 seeds (`output/full/`) | done (2026-10-29 15:47) |
+| Runtime, API calls, tokens and cost for 1,000 rows | done: `output/full/run_report.md` |
 
 Full run so far: discover found **17,565 candidates (13,634 podcasts, 3,931 YouTube channels)** from the first 58 seeds, before the Apple chart seeds were added.
+
+**Full run result (2026-10-29 15:47 IST, 112 seeds):** 32,582 candidates -> 1,210 qualified -> 39 duplicates and 88 shared-email rows removed -> **1,083 leads: US 638 (58.9%), GB 193, AU 121, CA 91, NZ 20, IE 13, SG 7; A 25, B 1,056, C 2.** All hard rules pass; 1,083 of 1,083 leads pass every message check. The free LLM quotas set the pace: the run was built up over several cached reruns from 28 Oct 21:44 to 29 Oct 15:47 as each model's daily cap reset (DECISIONS.md). The last run took 195 min and made 2,124 creator checks (1,670,970 Gemini tokens from new calls), $0. Creators judged per model: Gemini 3.1 Flash Lite 1,016, 3.5 Flash-Lite 662, 3.5 Flash 36; Groq gpt-oss-120b 146, gpt-oss-20b 133, Qwen 3.8 27B 131. 329 US creators were left unchecked; the US cap (60%) would allow at most 29 more.
+- Hand check (Claude Code, not the owner's audit): integrity checks on all 1,083 rows (0 duplicate IDs, profile URLs or contacts; 0 blank required fields; 0 placeholder emails) and 10 random leads in detail (4 non-US, 6 US). Each had a named host quoted from their own text, a business email from their own feed or site, and country evidence.
+
+**Proof runs for tab 03 (2026-10-29, on copies; `output/full/` unchanged):**
+- Repeat run (`output/proof/`, 110 min): 1,110 leads, 0 duplicates; 1,013 of the 1,083 kept their IDs. Groq's limit had reset, so 189 creators that the final run left unchecked were judged, and 97 more US creators qualified. The 60% cap then trimmed the 68 lowest-ranked US leads.
+- Refresh (`output/proof_refresh/`, 11 country seeds, then `--refresh` with S113 and S114): all 11 earlier leads kept their IDs with no changed columns, 6 added, 0 duplicates, 4.2 min.
+- Stop and resume (`output/proof/`): the run was killed during verify, then the same command resumed it with 0 new fetches; 1,110 leads, 0 duplicates, 62 min.
 
 Open questions for later phases:
 - Phase 4: Gemini could rewrite the 25 Priority A sequences for more persuasion, if time and quota allow.

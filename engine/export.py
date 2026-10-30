@@ -222,7 +222,7 @@ def write_report(conn, out_dir, started_iso, runtime_s, log_file, cap_failures):
         "## Runtime, API calls and cost", "",
         f"- Runtime: {runtime_s:.0f} s ({runtime_s / 60:.1f} min)",
         f"- Gemini tokens used by new calls: {gemini_tokens(conn, started_iso)} (free tier, $0)",
-        "- Cost: $0. YouTube Data API, Podcast Index, iTunes/Apple and Gemini were all used on free tiers.",
+        "- Cost: $0. YouTube Data API, Podcast Index, iTunes/Apple, Gemini and Groq were all used on free tiers.",
         f"- Errors logged: {errors} (see {log_file})", "",
         table(api.reset_index()[["source", "calls", "new_calls", "from_cache", "failed"]]), "",
     ]  # fmt: skip

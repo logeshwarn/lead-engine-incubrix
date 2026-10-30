@@ -6,12 +6,9 @@ The full brief is in [docs/BRIEF.pdf](docs/BRIEF.pdf).
 
 The assignment it answers is in [docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf](docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf).
 
-**Status:** Phase 1 (discover and enrich) is done, and Phase 2 is in progress: verify is built.
-- **Discover** searches YouTube, Podcast Index and iTunes for every active seed.
-- **Enrich** adds each candidate's profile, recent uploads or episodes, and published contact details from YouTube, the show's RSS feed and the creator's own website (robots.txt respected).
-- **Verify** runs the qualification checks. Each pass carries a quote and its URL, and each rejection lists its reasons (table `verified`).
+**Status:** all 9 stages are built and the engine meets the 1,000-lead target. The final run (29 Oct 2026, `data/seeds.csv`) gave **1,083 qualified leads** (25 Priority A with full sequences), with 0 duplicates and every hard rule passing. Repeat, refresh and stop-and-resume runs are proven too. The seed test and the owner's audit are still open; see [docs/PHASES.md](docs/PHASES.md).
 
-The later stages are not built yet, and the run log lists them. See [docs/PHASES.md](docs/PHASES.md).
+The stages: **discover → enrich → verify → dedupe → caps → score → route → draft → export.** Each one reads a table in `engine.db` and writes the next one, so a stopped run continues from the cache. The details are in [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## Setup (Windows, Python 3.11+)
 
@@ -22,7 +19,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Then open `.env` and fill in your API keys. `.env` is ignored by git, so never commit it.
+Then open `.env` and fill in your API keys: YouTube, Podcast Index (key and secret) and Gemini (`LLM_API_KEY`). `GROQ_API_KEY` is optional: Groq takes over when Gemini's free daily quota runs out. All of them have free tiers. `.env` is ignored by git, so never commit it.
 
 Check that the keys work (YouTube, Podcast Index, Gemini). This costs 1 YouTube quota unit and 0 Gemini tokens, and prints only PASS or FAIL:
 
@@ -52,7 +49,7 @@ python run.py --refresh
 
 `python run.py --help` lists the same flags.
 
-**Quota warning:** an uncached run over the full `data/seeds.csv` makes 84 YouTube searches, about 8,400 of the 10,000 free daily units, and enrich adds about 2-3 units per YouTube channel. A full first run therefore takes 2-3 days of quota. Each run stops YouTube calls cleanly when the quota runs out, and the next day's run continues from the cache. A rerun within 7 days is served from the cache and costs nothing. **If a run stops** (Ctrl+C, crash, power or network loss), run the same command again: it continues from the cache. To try the engine cheaply, copy a few rows of `data/seeds.csv` into a new file and pass it with `--input`.
+**Quota warning:** an uncached run over the full `data/seeds.csv` makes 84 YouTube searches, about 8,400 of the 10,000 free daily units, and enrich adds about 2-3 units per YouTube channel. A full first run therefore takes 2-3 days of quota. The free LLM quotas allow roughly 1,000-1,500 creator checks a day across the Gemini and Groq models (`llm` in `config.yaml`). A creator that could not be checked is rejected with `creator check not run`, and the next run after the quota resets checks only those creators. How the 1,083 leads were built up over several reruns: [docs/CACHE_AND_RERUNS.md](docs/CACHE_AND_RERUNS.md). Each run stops YouTube calls cleanly when the quota runs out, and the next day's run continues from the cache. A rerun within 7 days is served from the cache and costs nothing. **If a run stops** (Ctrl+C, crash, power or network loss), run the same command again: it continues from the cache. To try the engine cheaply, copy a few rows of `data/seeds.csv` into a new file and pass it with `--input`.
 
 ## Config
 
@@ -119,7 +116,7 @@ python -m ruff check .
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for YouTube**: the key is wrong, the YouTube Data API v3 is not enabled in the Google Cloud project, or the daily quota is used up.
 - **`check_apis.py` says FAIL with HTTP 401 for Podcast Index**: the key or secret is wrong, or your PC clock is off. The auth uses the current time.
 - **`check_apis.py` says FAIL with HTTP 400 or 403 for Gemini**: the key is wrong or restricted. Create a new one at https://aistudio.google.com (Get API key).
-- **`creator check failed` or `creator check not run (LLM unavailable)`** in `rejection_reason`: Gemini did not answer (free-tier load or quota). Run again later; answers already given are cached. To try another model, change `llm.model` in `config.yaml`.
+- **`creator check failed` or `creator check not run (LLM unavailable)`** in `rejection_reason`: no model in the LLM chain could answer, because every Gemini and Groq model hit its free quota or was busy. Run the same command again after the quotas reset (Gemini at midnight Pacific; Groq 24 hours after its first calls). Answers already given are cached, so only the unchecked creators are asked. The models and their order are `llm.model`, `llm.fallback_models` and `llm.groq_models` in `config.yaml`. The log says `out of quota` when a model is dropped.
 - **Log says `YouTube daily quota used up`**: the remaining YouTube searches were skipped. Run again after the quota resets (midnight Pacific time). Finished searches are cached, so the run continues where it stopped.
 - **`input file not found`**: check the `--input` path.
 - **The first run is slow** (about 1.75 s per new podcast with 8 parallel fetches; 96 minutes for 3,299 shows on 2026-10-28): a slow site can take up to 3 × 20 s before it is skipped. Reruns are served from the cache (about 6 minutes for the same 3,299 shows). Failed sites are retried after 1 day.
@@ -137,6 +134,7 @@ python -m ruff check .
 | [docs/DECISIONS.md](docs/DECISIONS.md) | decision log |
 | [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md) | 30-day launch plan for IncuBrix: channels, daily volume, owners, tools, budget, targets, risks |
 | [docs/WORKBOOK_TEXT.md](docs/WORKBOOK_TEXT.md) | draft text for the Submission Workbook tabs |
+| [docs/CACHE_AND_RERUNS.md](docs/CACHE_AND_RERUNS.md) | how the cache and reruns work, why, and the milestones from 7 to 1,083 leads |
 | [CHANGELOG.md](CHANGELOG.md) | dated changes |
 | [docs/records/AI_TOOLS_SOURCES.md](docs/records/AI_TOOLS_SOURCES.md) | AI tools and sources used |
 | [docs/records/MANUAL_WORK.md](docs/records/MANUAL_WORK.md) | manual work done by the owner |

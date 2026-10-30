@@ -2,12 +2,23 @@
 
 Dated list of notable changes. Newest first.
 
-## 2026-10-29 (early morning): merged run, more Groq models
+## 2026-10-29 (evening): proof runs for tab 03
 
+- Repeat run, refresh run and stop-and-resume run, all on copies (`output/proof/`, `output/proof_refresh/`); `output/full/` unchanged. Results in `docs/WORKBOOK_TEXT.md` tab 03 B and PHASES.
+- `data/proof/seeds_base.csv` (S102-S112) and `data/proof/seeds_new.csv` (plus new seeds S113, S114) for the refresh proof.
+- `docs/WORKBOOK_TEXT.md`: test count 256; the refresh requirement cites the refresh run.
+- `docs/CACHE_AND_RERUNS.md`: proof-run section.
+- README: current status (all stages built, 1,083 leads), the optional `GROQ_API_KEY`, the LLM quota per day, and the troubleshooting entry for the whole Gemini and Groq chain.
+- DECISIONS: the owner keeps 1,083 leads as the submitted result.
+
+## 2026-10-29: final run (1,083 leads), more LLM models
+
+- Added `docs/CACHE_AND_RERUNS.md`: how the cache and reruns work, why they were needed, and the milestones (7, 82, 211, 493, 1,083 leads). README docs table lists it. `docs/WORKBOOK_TEXT.md` tab 00 now names every Gemini and Groq model used.
 - `fallback_models` adds `gemini-3.1-flash-lite` first (its own 500 a day).
 - Gemini briefly ran on the owner's billed key (`llm.pause_seconds` 4 -> 1); its credit ran out before any paid check, so the original free key and the 4 s pause are back.
 - Rerun 06:22-06:51 IST from the cache: 211 leads (A 25, B 186), all non-US (GB 92, AU 52, CA 46, NZ 10, SG 6, IE 5); 1,997 creators unchecked.
 - `common.llm_json`: a model that is busy (5xx after retries) passes the prompt to the next model without being dropped. `fallback_models` adds `gemini-3.8-flash`. Test added; 256 in total.
+- Final run (12:32-15:47 IST, after the Gemini reset): **1,083 leads**, US 58.9%, all hard rules pass. `docs/LAUNCH_KIT.md`, `docs/WORKBOOK_TEXT.md` and PHASES filled with the final numbers; `run_report.md` names Groq among the free tiers.
 - Merged run (wave 3 cache, 03:52-04:50 IST): 32,589 candidates, 82 leads (A 25, B 57), all non-US. Groq `gpt-oss-120b` hit its 200,000-token daily cap after 125 checks; 2,263 creators unchecked.
 - `config.yaml`: `groq_models` adds `openai/gpt-oss-20b` and `qwen/qwen3.8-27b`.
 - `common.llm_json`: after a 429, waits `llm.rate_limit_wait_seconds` (60) and tries once more before treating the model as out of quota, so a per-minute limit no longer drops a model for the whole run. Test added; 255 in total.
