@@ -9,7 +9,7 @@ Status is one of: not started, in progress, done. Update this file at the end of
 | 2 | Verify, dedupe, caps | done (2026-10-28) |
 | 3 | Score and route | done (2026-10-28) |
 | 4 | Outreach drafting | done (2026-10-28) |
-| 5 | Scale, export, refresh | done (2026-10-29: 1,083 leads, all hard rules pass) |
+| 5 | Scale, export, refresh | done (2026-10-30: 1,262 leads, all hard rules pass) |
 | 6 | Seed test | in progress (seedtest.py built 2026-10-28; waiting for the owner's test accounts) |
 | 7 | Hardening and handover | in progress (final-run numbers and the 3 proof runs done 2026-10-29; seed test, owner fields and the owner's audit pending) |
 
@@ -220,6 +220,10 @@ Full run so far: discover found **17,565 candidates (13,634 podcasts, 3,931 YouT
 
 **Full run result (2026-10-29 15:47 IST, 112 seeds):** 32,582 candidates -> 1,210 qualified -> 39 duplicates and 88 shared-email rows removed -> **1,083 leads: US 638 (58.9%), GB 193, AU 121, CA 91, NZ 20, IE 13, SG 7; A 25, B 1,056, C 2.** All hard rules pass; 1,083 of 1,083 leads pass every message check. The free LLM quotas set the pace: the run was built up over several cached reruns from 28 Oct 21:44 to 29 Oct 15:47 as each model's daily cap reset (DECISIONS.md). The last run took 195 min and made 2,124 creator checks (1,670,970 Gemini tokens from new calls), $0. Creators judged per model: Gemini 3.1 Flash Lite 1,016, 3.5 Flash-Lite 662, 3.5 Flash 36; Groq gpt-oss-120b 146, gpt-oss-20b 133, Qwen 3.8 27B 131. 329 US creators were left unchecked; the US cap (60%) would allow at most 29 more.
 - Hand check (Claude Code, not the owner's audit): integrity checks on all 1,083 rows (0 duplicate IDs, profile URLs or contacts; 0 blank required fields; 0 placeholder emails) and 10 random leads in detail (4 non-US, 6 US). Each had a named host quoted from their own text, a business email from their own feed or site, and country evidence.
+
+**Seed waves 4-7 (2026-10-30, owner: more leads before the deadline):** 86 new seeds (S113-S198). The proof runs' cache was merged in. Results after each run: wave 4 (29 Apple subgenres) **1,110**, wave 5 (21 country keyword seeds) **1,125**, wave 6 (18 Podcast Index categories) **1,222**, wave 7 (16 more categories) **1,262**. The wave 4 run first stopped its creator check on a network drop (Gemini `ConnectionError` twice) and was rerun from the cache.
+
+**Final result (2026-10-30 22:39 IST, 198 seeds):** 53,293 candidates -> 1,737 qualified -> 73 duplicates and 124 shared-email rows removed -> 278 US trimmed by the 60% cap -> **1,262 leads: US 757 (60.0%), GB 223, AU 135, CA 105, NZ 20, IE 14, SG 8; A 25, B 1,236, C 1.** All hard rules pass; every creator got its LLM check. Integrity checks on all 1,262 rows: 0 duplicate IDs, profile URLs or contacts; 0 blank required fields; 0 placeholder contacts (the 15 hits on "your" are real domains). The 1,083 and 1,222 outputs are kept in `output/backup_1083/` and `output/backup_1222/`.
 
 **Proof runs for tab 03 (2026-10-29, on copies; `output/full/` unchanged):**
 - Repeat run (`output/proof/`, 110 min): 1,110 leads, 0 duplicates; 1,013 of the 1,083 kept their IDs. Groq's limit had reset, so 189 creators that the final run left unchecked were judged, and 97 more US creators qualified. The 60% cap then trimmed the 68 lowest-ranked US leads.

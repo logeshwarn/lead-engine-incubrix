@@ -146,10 +146,17 @@ COMMERCIAL_DOMAINS = {
 }  # fmt: skip
 
 # ---------- check 4: needs IncuBrix (creator's own words) ----------
+# Each phrase must be about the show itself. Hand check 2026-10-30: bare "taking a break" matched
+# "taking a break from emails / from alcohol", "hiring producers" matched an insurance agency's sales staff,
+# and "on hiatus" matched a guest's teaching job. Breaks now need the show or a first-person "we're/I'm".
+SHOW = r"(the |this |my |our )?(show|podcast|channel|recording|uploads?|episodes)"
+BREAK = r"(short |little |quick )?break"
 NEED_WORDS = re.compile(
-    r"(hiring (a |an )?(video |podcast |content )?(editor|producer|assistant)|looking for (a |an )?(video |podcast )?"
-    r"(editor|producer)|(sorry|apologi[sz]e) for the (delay|late (upload|episode))|been a while since (my|our) last"
-    r"|taking a (short )?break|on (a )?hiatus|behind on (episodes|uploads|editing)"
+    r"(hiring (a|an) (video |podcast |content )?(editor|producer|assistant)\b|looking for (a |an )?(video |podcast )?"
+    r"(editor|producer)\b|(sorry|apologi[sz]e) for the (delay|late (upload|episode))|been a while since (my|our) last"
+    rf"|taking a {BREAK} from {SHOW}|(we're|we are|i'm|i am) taking a {BREAK}"
+    rf"|taking a {BREAK}\W{{0,3}}(we'll|we will|i'll|i will) be back|{SHOW} (is )?on (a )?hiatus"
+    r"|(we're|we are|i'm|i am) on (a )?hiatus|behind on (episodes|uploads|editing)"
     r"|editing (takes|took) (forever|so long)|transcripts? coming soon)",
     re.I,
 )
@@ -217,11 +224,21 @@ VERIFIED_COLUMNS = [
 # ---------- helpers ----------
 
 
-def quote(text, start, end, width):
-    """The matched words with some context either side, on one line, cut to `width` characters."""
+def quote(text, start, end, width, whole_words=False):
+    """The matched words with some context either side, on one line, cut to `width` characters.
+
+    whole_words: cut at word boundaries, for need quotes that a message repeats ("e into how to..." in a first
+    message, hand check 2026-10-30). Country quotes keep the old cut: they are part of the cached LLM prompt.
+    """
     pad = max(0, (width - (end - start)) // 2)
-    snippet = text[max(0, start - pad) : end + pad]
-    snippet = re.sub(r"\s+", " ", snippet).strip()
+    left, right = max(0, start - pad), min(len(text), end + pad)
+    if whole_words and left > 0 and not text[left - 1].isspace():
+        space = text.find(" ", left, start)
+        left = space + 1 if space != -1 else left
+    if whole_words and right < len(text) and not text[right].isspace():
+        space = text.rfind(" ", end, right)
+        right = space if space != -1 else right
+    snippet = re.sub(r"\s+", " ", text[left:right]).strip()
     return snippet[:width]
 
 
@@ -389,7 +406,7 @@ def find_need(profile, items, config):
     for text, url in texts(profile, items):
         m = NEED_WORDS.search(text)
         if m:
-            q = quote(text, m.start(), m.end(), width)
+            q = quote(text, m.start(), m.end(), width, whole_words=True)
             return "own words", f"Creator says: {q}", q, url
     if not items:
         return None, None, None, None

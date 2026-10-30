@@ -6,7 +6,7 @@ The full brief is in [docs/BRIEF.pdf](docs/BRIEF.pdf).
 
 The assignment it answers is in [docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf](docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf).
 
-**Status:** all 9 stages are built and the engine meets the 1,000-lead target. The final run (29 Oct 2026, `data/seeds.csv`) gave **1,083 qualified leads** (25 Priority A with full sequences), with 0 duplicates and every hard rule passing. Repeat, refresh and stop-and-resume runs are proven too. The seed test and the owner's audit are still open; see [docs/PHASES.md](docs/PHASES.md).
+**Status:** all 9 stages are built and the engine meets the 1,000-lead target. The final run (30 Oct 2026, `data/seeds.csv`, 198 seeds) gave **1,262 qualified leads** (25 Priority A with full sequences), with 0 duplicates and every hard rule passing. Repeat, refresh and stop-and-resume runs are proven too. The seed test and the owner's audit are still open; see [docs/PHASES.md](docs/PHASES.md).
 
 The stages: **discover → enrich → verify → dedupe → caps → score → route → draft → export.** Each one reads a table in `engine.db` and writes the next one, so a stopped run continues from the cache. The details are in [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
@@ -134,7 +134,7 @@ python -m ruff check .
 | [docs/DECISIONS.md](docs/DECISIONS.md) | decision log |
 | [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md) | 30-day launch plan for IncuBrix: channels, daily volume, owners, tools, budget, targets, risks |
 | [docs/WORKBOOK_TEXT.md](docs/WORKBOOK_TEXT.md) | draft text for the Submission Workbook tabs |
-| [docs/CACHE_AND_RERUNS.md](docs/CACHE_AND_RERUNS.md) | how the cache and reruns work, why, and the milestones from 7 to 1,083 leads |
+| [docs/CACHE_AND_RERUNS.md](docs/CACHE_AND_RERUNS.md) | how the cache and reruns work, why, and the milestones from 7 to 1,262 leads |
 | [CHANGELOG.md](CHANGELOG.md) | dated changes |
 | [docs/records/AI_TOOLS_SOURCES.md](docs/records/AI_TOOLS_SOURCES.md) | AI tools and sources used |
 | [docs/records/MANUAL_WORK.md](docs/records/MANUAL_WORK.md) | manual work done by the owner |

@@ -46,9 +46,11 @@ def test_every_row_has_keywords():
 
 
 def test_no_keyword_repeated():
-    # A repeated YouTube keyword wastes 100 quota units for no new candidates.
-    keywords = seeds["discovery_keywords"].str.split(";").explode().str.strip().str.lower()
-    assert keywords.is_unique
+    # A repeated YouTube keyword wastes 100 quota units for no new candidates. The same name on two
+    # platforms is not a repeat: "Business" as an Apple chart and as a Podcast Index category are different lists.
+    rows = seeds.assign(keyword=seeds["discovery_keywords"].str.split(";")).explode("keyword")
+    keys = rows["primary_platform"] + ":" + rows["keyword"].str.strip().str.lower()
+    assert keys.is_unique
 
 
 def test_size_band_valid():

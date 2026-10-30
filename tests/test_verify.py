@@ -228,6 +228,34 @@ def test_own_words_beat_observed_gaps(cfg):
     assert kind == "own words" and "hiring a video editor" in q and url == items[1]["url"]
 
 
+@pytest.mark.parametrize("text", [
+    "He loves the wilderness and taking a break from emails.",
+    "Why grit matters when hiring producers for your agency.",
+    "He is currently on hiatus from his teaching at the college.",
+    "From comics to hiring assistants for your studio.",
+])  # fmt: skip
+def test_need_words_ignore_breaks_and_hires_not_about_the_show(text):
+    assert not verify.NEED_WORDS.search(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Taking a short break - we'll be back next week!",
+    "We're taking a little break from the podcast over summer.",
+    "The show is on hiatus until March.",
+    "Transcript coming soon.",
+])  # fmt: skip
+def test_need_words_catch_the_show_pausing(text):
+    assert verify.NEED_WORDS.search(text)
+
+
+def test_need_quote_is_cut_at_whole_words():
+    text = "We dive into how to coach each producer, and why we are hiring an editor for the show this spring."
+    m = verify.NEED_WORDS.search(text)
+    q = verify.quote(text, m.start(), m.end(), 40, whole_words=True)
+    assert "hiring an editor" in q and q in text
+    assert text[text.index(q) - 1] == " " and text[text.index(q) + len(q)] == " "
+
+
 def test_no_captions_claim_needs_known_status(cfg):
     items = good_items()
     items[0]["has_captions"] = None  # unknown for one item: no claim

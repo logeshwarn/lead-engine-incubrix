@@ -86,6 +86,36 @@ discover:
     Religion/Spirituality: 1444
     Sports/Running: 1551
     Music/Music Interviews: 1525
+    # wave 4 (2026-10-30): more subgenres from Apple's genre service, creator-heavy ones only (DECISIONS.md)
+    Arts/Performing Arts: 1405
+    Comedy/Comedy Interviews: 1496
+    Comedy/Stand-Up: 1497
+    Health/Sexuality: 1516
+    Kids & Family/Pets & Animals: 1522
+    Leisure/Automotive: 1503
+    Leisure/Aviation: 1504
+    Leisure/Games: 1507
+    Leisure/Video Games: 1509
+    Leisure/Animation & Manga: 1510
+    Music/Music Commentary: 1523
+    Science/Natural Sciences: 1534
+    Science/Nature: 1537
+    Science/Social Sciences: 1535
+    Science/Astronomy: 1538
+    Society/Philosophy: 1443
+    Sports/Cricket: 1554
+    Sports/Rugby: 1552
+    Sports/Soccer: 1546
+    Sports/Golf: 1553
+    Sports/Football: 1547
+    Sports/Tennis: 1556
+    Sports/Wilderness: 1559
+    Sports/Fantasy Sports: 1560
+    TV & Film/Film Reviews: 1563
+    TV & Film/TV Reviews: 1561
+    TV & Film/Film Interviews: 1565
+    TV & Film/After Shows: 1562
+    Music/Music History: 1524
 
 segments:                     # approved segments, spelled exactly as the Submission Workbook dropdown
   - Podcaster/Video Podcaster

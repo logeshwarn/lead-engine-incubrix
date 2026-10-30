@@ -47,7 +47,11 @@ Timings and counts come from `CHANGELOG.md`, the run logs and the run reports. A
 | 29 Oct 06:22–06:51 | **211** | Rerun from the cache after the Groq limits rolled over. All 211 leads were non-US, and 1,997 creators were unchecked. **Fixes:** `gemini-3.8-flash` added, and busy models pass the prompt on. |
 | 29 Oct ~07:45 | — | The owner tried a billed Gemini key. Its credit ran out before any paid check, so the free key went back. |
 | 29 Oct by 12:10 | **493** | Every non-US creator was checked (445 non-US leads). 1,426 US creators were left. **Fix:** `gemini-3.1-flash-lite` added. The owner's AI Studio screenshot showed it has its own 500-a-day quota. |
-| 29 Oct 12:32–15:47 | **1,083** | Final run after the Gemini reset at 12:30. It made 2,124 creator checks: stored answers plus fresh quota. US 638 (58.9%), GB 193, AU 121, CA 91, NZ 20, IE 13, SG 7. All hard rules pass. |
+| 29 Oct 12:32–15:47 | **1,083** | Run after the Gemini reset at 12:30. It made 2,124 creator checks: stored answers plus fresh quota. US 638 (58.9%), GB 193, AU 121, CA 91, NZ 20, IE 13, SG 7. All hard rules pass. |
+| 30 Oct 16:00–18:40 | **1,110** | Wave 4: the proof runs' cache merged in, and 29 Apple subgenres added (7,310 new shows, only 13 leads). The first run lost its creator check to a network drop; the rerun from the cache finished it. |
+| 30 Oct 18:46–19:15 | **1,125** | Wave 5: 21 country keyword seeds (251 new shows). |
+| 30 Oct 19:17–21:25 | **1,222** | Wave 6: 18 Podcast Index categories (8,087 new shows), 39 more non-US leads. |
+| 30 Oct 21:26–22:39 | **1,262** | Wave 7: 16 more categories (5,103 new shows). US 757 (60.0%), GB 223, AU 135, CA 105, NZ 20, IE 14, SG 8. All hard rules pass. |
 
 ### What moved the count at each step
 
@@ -55,12 +59,13 @@ Timings and counts come from `CHANGELOG.md`, the run logs and the run reports. A
 - **82 → 211:** more Groq models, plus wait-and-retry, so a per-minute limit no longer cost a model its whole day.
 - **211 → 493:** quota resets, plus `gemini-3.8-flash`. The cache meant every reset went only to new creators.
 - **493 → 1,083:** `gemini-3.1-flash-lite`'s separate quota and the 12:30 Gemini reset. Most of the gain is US leads. US creators were checked last by design, and the 445 non-US leads let the cap admit up to about 667 US leads.
+- **1,083 → 1,262:** new non-US seeds. The 60% cap allows 1.5 US leads per non-US lead, and qualified US creators were already waiting, so every new non-US lead raised the total by about 2.5. Podcast Index categories gave far more than Apple subgenres or keyword searches.
 
 No rule was relaxed along the way. Every lead passed the same checks, and every LLM answer still had to quote the creator's own text word for word.
 
 ## Proof runs (29 Oct evening)
 
-These ran on copies of the output folder, so `output/full/` still holds the 1,083-lead result.
+These ran on copies of the output folder (`output/proof/`, `output/proof_refresh/`), before the 30 Oct seed waves.
 
 - **Repeat run** (110 min): 1,110 leads. Groq's limit had reset, so 189 creators that were never judged got an answer, and 97 more US creators qualified. All IDs are still unique.
 - **Refresh run** on a small seed set plus 2 new seeds (4.2 min): every earlier lead kept its ID, 6 were added, and there were 0 duplicates.
@@ -68,7 +73,7 @@ These ran on copies of the output folder, so `output/full/` still holds the 1,08
 
 ## What is left
 
-- 329 US creators were not checked. The US cap allows at most 29 more US leads, so a further run adds little.
+- Every creator has been checked. 278 qualified US creators are trimmed by the 60% cap; only more non-US leads would let them in.
 - The cache stays valid until about 4 Nov (searches and pages) and about 28 Nov (LLM answers). Until then, a rerun of the same command reads it back.
 
 ## Commands

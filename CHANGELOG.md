@@ -2,6 +2,20 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-30 (night): own-words need fix
+
+- `engine/verify.py`: `NEED_WORDS` phrases must be about the show; `quote(..., whole_words=True)` for need quotes. 17 of 21 own-words needs were false matches (DECISIONS.md). Tests: 9 new; 265 in total.
+- Rerun from the cache to re-pick needs and Priority A.
+
+## 2026-10-30: waves 4-7, 1,262 leads
+
+- Waves 5-7: S144-S164 (21 country and city keyword seeds), S165-S198 (34 Podcast Index categories). Results per run: 1,110, 1,125, 1,222, **1,262 leads** (US 60.0%), all hard rules pass. `output/full/` holds 1,262; backups of 1,083 and 1,222 in `output/backup_*`.
+- Docs: README, LAUNCH_KIT, WORKBOOK_TEXT, PHASES and CACHE_AND_RERUNS use the 1,262 numbers.
+- `tests/test_seeds.py`: a keyword may repeat on a different platform (an Apple genre and a Podcast Index category share names like "Business"); repeats within one platform still fail.
+
+- `data/seeds.csv`: S113 and S114 (Australian and UK money and property podcasts, from the refresh proof) and S115-S143: 29 Apple subgenre charts (sports, comedy, science, leisure, TV and film, philosophy and others). `config.yaml` `discover.apple_genres` has their IDs.
+- The proof runs' cache is merged into `output/full/`. The 1,083-lead outputs are backed up in `output/backup_1083/`.
+
 ## 2026-10-29 (evening): proof runs for tab 03
 
 - Repeat run, refresh run and stop-and-resume run, all on copies (`output/proof/`, `output/proof_refresh/`); `output/full/` unchanged. Results in `docs/WORKBOOK_TEXT.md` tab 03 B and PHASES.
