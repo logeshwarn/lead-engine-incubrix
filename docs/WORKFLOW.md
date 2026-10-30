@@ -241,7 +241,7 @@ Input: `routed`. Output: `drafted`, plus `personalization_hook`, the first messa
 
 ## Qualification checks (all must pass, each with a working public link)
 
-Sources: `docs/BRIEF.pdf` and the assignment `docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf` (section 3). Where they differ, the stricter rule wins.
+Sources: the IncuBrix brief and the assignment (section 3), both kept out of the repository. Where they differ, the stricter rule wins.
 
 1. **Real and relevant**
    - A real creator in an approved segment and country, with an official profile and a stable platform ID.

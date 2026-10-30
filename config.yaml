@@ -1,5 +1,5 @@
 # IncuBrix Lead Engine settings.
-# Every value here comes from docs/BRIEF.pdf unless DECISIONS.md says otherwise.
+# Every value here comes from the IncuBrix brief (not in the repository) unless DECISIONS.md says otherwise.
 # Secrets never go here: they live in .env (see .env.example).
 
 # Database (engine.db) and logs (logs/) are written inside the --out folder.

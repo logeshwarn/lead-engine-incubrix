@@ -2,6 +2,10 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-31: assignment files out of git
+
+- `docs/BRIEF.pdf`, the assignment PDF and `docs/Submission_Workbook.xlsx` are no longer tracked (local copies kept, listed in `.gitignore`). `tests/test_leads_schema.py` skips without the workbook. README, WORKFLOW, WORKBOOK_TEXT and `config.yaml` no longer link to them.
+
 ## 2026-10-31: seed test done
 
 - Seed test on the owner's own accounts, 3 channels: Email 9 of 9 sent automatically on schedule (first messages, then +8 and +18 min, each within a minute of plan), 1 click, 1 reply found in Gmail by IMAP; Instagram and LinkedIn 1 message each sent by hand, each with 1 click and 1 reply. Proof in `output/full/seed_test/`.

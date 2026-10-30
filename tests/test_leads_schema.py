@@ -4,11 +4,16 @@ import re
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from engine.common import CANDIDATE_STATUSES, CHANNELS, LEADS_COLUMNS, PRIORITIES, load_config
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKBOOK = ROOT / "docs" / "Submission_Workbook.xlsx"
 LEADS_SHEET = "xl/worksheets/sheet3.xml"  # tab 02_LEADS
+
+# The workbook comes from IncuBrix and is kept out of git (DECISIONS.md, 2026-10-31). Put it in docs/ to run these.
+pytestmark = pytest.mark.skipif(not WORKBOOK.exists(), reason="docs/Submission_Workbook.xlsx is not in the repository")
 
 
 def _read(name):

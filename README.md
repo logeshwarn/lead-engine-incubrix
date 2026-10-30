@@ -4,7 +4,7 @@ A small Python engine that finds content creators (podcasters, YouTubers, expert
 
 **Status (30 Oct 2026):** all 9 stages are built. The full run on `data/seeds.csv` (198 seeds) gave **1,260 qualified leads**, with 25 Priority A leads that each have full sequences, 0 duplicates and every hard rule passing. Repeat, refresh and stop-and-resume runs are proven ([docs/WORKBOOK_TEXT.md](docs/WORKBOOK_TEXT.md), tab 03). The seed test and the owner's audit are still open ([docs/PHASES.md](docs/PHASES.md)).
 
-The brief: [docs/BRIEF.pdf](docs/BRIEF.pdf). The assignment: [docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf](docs/IncuBrix_2027_Growth_Engineer_Option_1_Lead_Generation_and_Outreach.pdf).
+The brief and the assignment come from IncuBrix and are not in the repository. The rules they set are written out in [docs/WORKFLOW.md](docs/WORKFLOW.md): the qualification checks, the hard constraints and the `leads.csv` columns.
 
 ```
 seeds.csv → discover → enrich → verify → dedupe → caps → score → route → draft → export

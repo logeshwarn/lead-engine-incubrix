@@ -1,6 +1,6 @@
 # Submission Workbook text (draft)
 
-Text to paste into `docs/Submission_Workbook.xlsx`, tab by tab. It is a draft: the owner checks every line before pasting.
+Text to paste into the Submission Workbook (from IncuBrix, kept out of the repository), tab by tab. It is a draft: the owner checks every line before pasting.
 
 - **[final run]**: a number from the final `run_report.md`, filled in when that run finishes.
 - **[owner]**: only the owner can fill this in (personal details, videos, product use, time spent).
