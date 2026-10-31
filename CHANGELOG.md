@@ -2,9 +2,15 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-31: real outreach guide
+
+- Added `docs/OUTREACH_GUIDE.md`: step-by-step real outreach for IncuBrix's team (setup, real sender and postal address, regenerate, daily sending per channel with limits and follow-ups, replies and opt-outs, tracking and stop rules, Monday refresh, never-list). README section 6 now points to it; docs index lists it.
+- `tests/test_leads_schema.py`: finds a column's dropdown when Excel merges rules (`sqref="R5:R1004 U5:U1004"`). `.gitignore`: Office lock files (`~$*`).
+
 ## 2026-10-31: README handover section
 
 - README section 6, "Going live: real outreach (for IncuBrix)": how IncuBrix's team sends from its own domain and accounts using `leads.csv` and `outreach/`, following the launch kit (setup, real sender and postal address, regenerate, consent check, CRM import, volumes, daily logging and opt-outs, weekly refresh). The engine's own sending stays locked to test accounts (brief rule 6). Later sections renumbered.
+- README: how click tracking works in the seed test (local server, per-message links, same PC only, where clicks are logged, `report` shows them), and that real outreach tracks clicks in the sending mailbox or CRM.
 
 ## 2026-10-31: fresh-clone check, workbook filled
 

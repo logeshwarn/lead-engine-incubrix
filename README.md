@@ -185,35 +185,18 @@ Repeat that with `2/4`, `3/4` and `4/4` in separate terminals. Each shard only f
 
 ---
 
-## 6. Going live: real outreach (for IncuBrix)
+## 6. Real outreach (for IncuBrix)
 
-The engine finds, verifies and drafts. **Sending to real creators is done by IncuBrix's team, from IncuBrix's own domain and accounts**, following the 30-day plan in [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md). The engine itself never sends to a creator: `seedtest.py` is locked to the test accounts in `.env`, and LinkedIn, Instagram and contact forms must be sent by hand under those platforms' rules.
+**Step-by-step guide: [docs/OUTREACH_GUIDE.md](docs/OUTREACH_GUIDE.md).** It covers:
+1. the one-time setup: outreach domain, mailboxes, CRM, legal check
+2. putting the real sender and postal address into `config.yaml`, then regenerating the messages
+3. the daily sending routine per channel, with limits and follow-ups
+4. handling replies and opt-outs, tracking and stop rules
+5. the Monday refresh
 
-**Before the first send (about 3 hours, launch kit section 4):**
-1. Set up a separate outreach domain with 2 mailboxes under real team members' names, plus SPF, DKIM and DMARC, and register it in Google Postmaster Tools.
-2. In `config.yaml`, set the real sender (`sender.name`, `sender.description`) and the company's postal address (`sender.postal_address`, required in commercial email). Approve the product line (`draft.pitch`).
-3. Regenerate every message with the real sender. This takes minutes, because everything comes from the cache:
-   ```bash
-   python run.py --input data/seeds.csv --out output/
-   ```
-4. Have legal confirm the consent rules per country (launch kit section 7). Until then, contact UK and Irish sole traders by contact form, not cold email.
-5. Import `output/leads.csv` into the CRM (Google Sheets or HubSpot free), with a stage column: Not contacted, Sent, Follow-up 1, Follow-up 2, Replied, Meeting, Not interested, Opted out.
+The 30-day plan behind it is [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md).
 
-**Sending (launch kit sections 3-4):**
-
-| What | From | Where the text is | Volume |
-|---|---|---|---|
-| 25 Priority A sequences | a person, by hand, on each lead's `best_channel` | `output/outreach/A/` (first message, day 4, day 9 on the backup channel) | week 1, Mon-Tue |
-| B, then C, first emails | the 2 outreach mailboxes (or the CRM's email sequencing) | `first_message` in `leads.csv`; `output/outreach/sequences.csv` | 20 a day per mailbox in week 1, 30 in week 2, 40 in weeks 3-4 |
-| Contact form, Instagram, LinkedIn, guest pitch | a person, by hand | `output/outreach/sequences.csv` (`send_mode` = manual) | 10-15 a day each |
-
-**Every day:** log sends and replies in the CRM, answer replies the same day, and add every opt-out to a suppression list that is never contacted again. **Stop** if bounces pass 3%.
-
-**Every Monday:** refresh, then load only the new `lead_id`s into the CRM. Existing creators keep their ID, so the CRM never gets duplicates:
-
-```bash
-python run.py --refresh --input data/seeds.csv --out output/
-```
+Sending is done by IncuBrix's team from IncuBrix's own domain and accounts. The engine never sends to a creator: its only sender, `seedtest.py`, is locked to the test accounts in `.env` (section 7).
 
 ---
 
@@ -241,6 +224,8 @@ python seedtest.py clicks --out output/
 python seedtest.py send --out output/
 ```
 
+**Click tracking:** `clicks` starts a small local server on `http://localhost:8765`. Every message carries its own tracked link (`http://localhost:8765/c/S001`, `/c/S002` and so on). Opening one logs the click with its time in `engine.db` (table `seed_events`), then redirects to incubrix.com. Keep it running in its own terminal for the whole test (Ctrl+C stops it), and open the links **on the same PC**: `localhost` doesn't reach this server from a phone or another computer.
+
 Then:
 1. Keep `clicks` running in its own terminal.
 2. Run `send` again after 8 and after 18 minutes for the follow-ups.
@@ -251,6 +236,8 @@ Then:
 ```bash
 python seedtest.py report --out output/
 ```
+
+The report, `<out>/seed_test/seed_report.md`, counts the messages scheduled, sent, clicked and replied per channel, and compares each message's planned and actual send time. Every click, send and reply is also saved, with its time, in `<out>/seed_test/seed_events.csv`. Run `report` again at any time to see the latest clicks.
 
 The steps and screenshots are listed in [docs/WORKFLOW.md](docs/WORKFLOW.md#seed-test-seedtestpy-phase-6).
 
@@ -311,6 +298,7 @@ python -m ruff check .
 | [docs/DECISIONS.md](docs/DECISIONS.md) | the decision log: each threshold and trade-off, with its reason |
 | [docs/PHASES.md](docs/PHASES.md) | phase status and results |
 | [docs/CACHE_AND_RERUNS.md](docs/CACHE_AND_RERUNS.md) | how the cache and reruns work, and the milestones from 7 to 1,260 leads |
+| [docs/OUTREACH_GUIDE.md](docs/OUTREACH_GUIDE.md) | step-by-step guide for real outreach: setup, sending, replies, tracking, weekly refresh |
 | [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md) | the 30-day launch plan for IncuBrix |
 | [docs/WORKBOOK_TEXT.md](docs/WORKBOOK_TEXT.md) | text for the Submission Workbook tabs |
 | [CHANGELOG.md](CHANGELOG.md) | dated changes |

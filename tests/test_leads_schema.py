@@ -39,9 +39,10 @@ def _workbook_header():
 
 def _dropdown(column_letter):
     # Workbook dropdowns are stored as "A,B,C" lists on the data-validation rule for that column
-    # (quoted as &quot; by Excel, as a plain " by openpyxl).
+    # (quoted as &quot; or a plain "). Excel may merge identical rules into one: sqref="R5:R1004 U5:U1004".
     match = re.search(
-        rf'sqref="{column_letter}5:[^"]*"[^>]*><formula1>(?:&quot;|")(.*?)(?:&quot;|")</formula1>', _read(LEADS_SHEET)
+        rf'sqref="(?:[^"]* )?{column_letter}5:[^"]*"[^>]*><formula1>(?:&quot;|")(.*?)(?:&quot;|")</formula1>',
+        _read(LEADS_SHEET),
     )
     return match.group(1).split(",")
 
