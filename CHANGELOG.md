@@ -2,6 +2,10 @@
 
 Dated list of notable changes. Newest first.
 
+## 2026-10-31: README handover section
+
+- README section 6, "Going live: real outreach (for IncuBrix)": how IncuBrix's team sends from its own domain and accounts using `leads.csv` and `outreach/`, following the launch kit (setup, real sender and postal address, regenerate, consent check, CRM import, volumes, daily logging and opt-outs, weekly refresh). The engine's own sending stays locked to test accounts (brief rule 6). Later sections renumbered.
+
 ## 2026-10-31: fresh-clone check, workbook filled
 
 - Fresh clone of the GitHub repository into an empty folder, following only the README: install works, 267 tests pass, `check_apis.py` passes, and the sample gave 12 leads in 5 countries in 14.3 min, all hard rules passing.
